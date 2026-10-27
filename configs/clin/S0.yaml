@@ -1,0 +1,4 @@
+# lifelines CoxPH（penalizer 0.1），输入临床变量 + 治疗 one-hot
+defaults: [base.yaml]
+model: {type: cox}
+cox: {penalizer: 0.1}

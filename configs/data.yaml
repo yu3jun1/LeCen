@@ -1,0 +1,49 @@
+paths:
+  raw_luna16: ???            # 含 subset0.zip … subset9.zip，逐子集解压到 subset<N>/
+  luna16_seg: ???            # seg-lungs-LUNA16 解压目录（<seriesuid>.mhd）
+  luna16_annotations: ???    # annotations.csv
+  luna16_excluded: ???       # evaluationScript/annotations/annotations_excluded.csv
+  raw_clinical: ???          # 临床 DICOM 下载目录
+  clinical_series: ???       # csv: patient_id, series_uid（资格核验确定的治疗前基线 CT）
+  clinical_table: ???        # 原始临床表
+  processed: ???
+  meta: ???
+  cache: ???
+preprocess:
+  version: pp_v1
+  spacing_zyx: [1.25, 0.703125, 0.703125]
+  hu_clip: [-1000, 400]         # x = (clip(HU) + 1000) / 1400
+  crop:
+    luna:
+      mode: lung_bbox           # 肺外接框裁剪，不对肺外像素清零
+      margin_mm: null           # 由 crop_rules.py 在训练集上确定后写入
+      safety_mm: 5
+      fit_margins_mm: [0, 5, 10, 15, 20, 25, 30]
+      lung_labels: [3, 4]       # seg-lungs-LUNA16 左右肺
+    clinical:
+      mode: lung_bbox
+      margin_mm: 30             # 在临床训练集上确认后固定
+      lung_labels: [1, 2]       # lungmask 左右肺
+    fallback:                   # 只依据图像与分割质量，不看病灶位置
+      lung_volume_ml: [1000, 10000]
+      min_bbox_mm_zyx: [100, 120, 150]
+      require_both_lungs: true
+      fallback_mode: body_bbox  # HU 阈值 + 最大连通域
+      body_hu: -500
+ctclip:
+  checkpoint: ???
+  token_layer: ???              # CTViT 中输出 (1, 24, 24, 24, 512) token 网格的模块名
+  pooled_grid: [12, 12, 12]
+  dtype: float16
+clinical:
+  collection: acrin_nsclc_fdg_pet
+  columns:
+    patient_id: ???
+    time_days: ???              # 相对统一时间起点的天数
+    event: ???
+    treatment: ???
+  event_values: ???             # 原始事件列中表示事件发生的取值
+  covariates: ???               # 临床协变量列名
+splits:
+  det: {train: [0, 1, 2, 3, 4, 5, 6], val: [7], test: [8, 9]}
+  clin: {ratios: [0.6, 0.2, 0.2], stratify: [event, treatment], seed: 2026}

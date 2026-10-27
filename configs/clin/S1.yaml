@@ -1,0 +1,3 @@
+# 只用 D1 提取器的 pool_g；SurvivalHead 输入 [pool_g; c; e(a)]
+defaults: [base.yaml]
+model: {slots: false}

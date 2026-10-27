@@ -1,0 +1,29 @@
+defaults: [../data.yaml]
+patch_zyx: [80, 192, 192]        # 必须能被所有层 stride 整除
+pos_fraction: 0.5
+pos_jitter_mm: 10
+augment:
+  flip_axes: [0, 1, 2]
+  intensity: {scale: 0.1, shift: 0.05}   # 在归一化强度尺度 [0,1] 上定义
+  rotate: false
+sampling: {align_corners: false}
+model:
+  dim: 256
+  backbone: {type: resnet18_fpn, levels: [2, 4, 8]}
+  heatmap: {level: 4, n_q: 64, nms_kernel: 3}   # level 可改为 2
+  decoder: {layers: 3, heads: 8, local_grid: 7, local_extent_scale: 1.5,
+            local_extent_min_mm: 10, use_global: true}
+  recovery: {enabled: true, crop_scale: 1.5, out_size: 32, dilate_vox: 2}
+loss:
+  match_cost: {cls: 2.0, l1: 5.0, giou: 2.0}
+  aux_match: final          # final | per_layer
+  exist_focal: {alpha: 0.25, gamma: 2.0}
+  w: {hm: 1.0, size: 0.1, exist: 2.0, l1: 5.0, giou: 2.0, local: 1.0}
+optim: {type: adamw, lr_decoder: 2.0e-4, lr_backbone: 1.0e-4, wd: 1.0e-4,
+        warmup_iters: 1000, schedule: cosine, clip_norm: 1.0}
+train: {batch: 4, accum_steps: 1, iters: 60000, amp: true, val_every: 2000, workers: 4}
+infer: {overlap: 0.25, p_min: 0.05, nms: center_distance, nms_radius_scale: 0.5}
+adapt:
+  iters: ???                # 临床定位适配步数，仅在覆盖不足时使用
+seeds: {init: 1000, recovery_init: 1001, data: 2000}
+init_ckpt: runs/init/init.pt

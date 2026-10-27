@@ -1,0 +1,3 @@
+# D1 slot；去掉所有治疗输入。仅在治疗有变化时运行
+defaults: [base.yaml]
+model: {treatment: false}

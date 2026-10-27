@@ -1,0 +1,10 @@
+defaults: [../data.yaml]
+slots:
+  extractor: ???            # 提取器运行目录 runs/<D>/<run_id>
+  k_max: 16
+  cover_margin_mm: 5
+model: {type: neural, slots: true, update: f, treatment: true,
+        f_hidden: 256, head_hidden: 128, dropout: 0.2, ea_dim: 16, ec_dim: 32}
+surv: {n_t: 10, t_star_days: 730, ipcw_quantile: 0.8, ibs_points: 50}
+train: {lr: 1.0e-3, wd: 1.0e-4, batch: 32, max_epochs: 200, patience: 20}
+seed: 1000
