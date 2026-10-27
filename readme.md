@@ -1,1 +1,1 @@
-Lesion-Centric World Model
+# Lesion-Centric World Model Design
