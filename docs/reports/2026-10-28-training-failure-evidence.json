@@ -1,0 +1,273 @@
+{
+  "schema_version": 1,
+  "generated_beijing": "2026-10-28T20:32:08.785948+08:00",
+  "training_status": "failed_not_complete",
+  "root_cause_fixed": false,
+  "base_commit": "17ac9e6efd95b00fb32500dfd847058ea0488f38",
+  "training_semantics": {
+    "unit": "successful_optimizer_update",
+    "total_updates": 60000,
+    "validation_every": 2000,
+    "global_batch": 4,
+    "accum_steps": 1,
+    "world_size_per_experiment": 2,
+    "train_cts": 623,
+    "val_cts": 89,
+    "test_cts": 176,
+    "sampler": "infinite_with_replacement",
+    "sampler_epoch_meaning": "one cycle of n_cases globally drawn patches, not a pass over all CTs",
+    "ideal_patch_samples_without_skipped_updates": 240000,
+    "ideal_sampling_cycles_without_skipped_updates": 385.2327447833066
+  },
+  "experiments": {
+    "D1": {
+      "run_id_utc": "20261028-105142",
+      "run_directory_local": "/home/tanyuejun/LeCen_accel/runs/D1/20261028-105142",
+      "gpus": [
+        0,
+        1
+      ],
+      "launcher_failure_beijing": "2026-10-28T19:05:31+08:00",
+      "last_successful_optimizer_step": 3137,
+      "attempt_that_failed": "forward immediately after the last successful update",
+      "last_training_log_row": {
+        "step": 3137.0,
+        "exist": 1.25452721118927,
+        "l1": 2.6462972164154053,
+        "giou": 3.0755865573883057,
+        "hm": 1.3173946142196655,
+        "size": 1.0491357743740082,
+        "local": 0.6009394526481628,
+        "n_rec": 8.0,
+        "n_rec_zero": 0.0,
+        "lr": 0.0001993532951556,
+        "grad_norm": 40.22405242919922,
+        "skipped": 10.0
+      },
+      "last_validation": {
+        "step": 2000.0,
+        "CPM": 0.5945945945945946,
+        "sens@1FP": 0.6126126126126126,
+        "sens@1FP_3-6mm": 0.4833333333333333,
+        "chain_retained": 1.0,
+        "chain_hm": 0.8738738738738738,
+        "chain_dec": 0.8648648648648649,
+        "chain_nms": 0.8648648648648649,
+        "chain_work": 0.6036036036036037
+      },
+      "ordinary_checkpoints": {
+        "best.pt": {
+          "saved_step": 2000,
+          "bytes": 190583640
+        },
+        "last.pt": {
+          "saved_step": 2000,
+          "bytes": 190583640
+        }
+      },
+      "error_type": "ValueError",
+      "error_message": "matrix contains invalid numeric entries",
+      "error_site": "losses/matching.py:hungarian_match -> scipy.optimize.linear_sum_assignment",
+      "failure_snapshot": {
+        "local_path": "/data/tanyuejun/_management/LeCen/failures/D1_step3137_rank1_3861384_1793185488365223001.pt",
+        "bytes": 652118111,
+        "sha256": "95a73894ac47931ab8b98a24a132d4a362a1d14de49af6cbeab80f1af76b0d76",
+        "saved_keys": [
+          "model",
+          "recovery",
+          "optimizer",
+          "scheduler",
+          "scaler",
+          "batch",
+          "step",
+          "skipped",
+          "error",
+          "torch_rng",
+          "cuda_rng"
+        ],
+        "step": 3137,
+        "skipped": 10,
+        "scaler": {
+          "scale": 128.0,
+          "growth_factor": 2.0,
+          "backoff_factor": 0.5,
+          "growth_interval": 2000,
+          "_growth_tracker": 672
+        },
+        "binary_uploaded": false
+      },
+      "artifacts": {
+        "process_log": {
+          "local_path": "/data/tanyuejun/_management/LeCen/logs/train_D1_idle.log",
+          "sha256": "9333c0d003f6806ef2c02fe7f45e0bf3834823c9634c0786009f9dbc70ba3e4e"
+        },
+        "train_log": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D1/20261028-105142/train_log.csv",
+          "sha256": "0a9f8e57453b9d9c3a02816a8f1aaebcea03bfc1fb9916503cb853249aebfea2"
+        },
+        "val_metrics": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D1/20261028-105142/val_metrics.csv",
+          "sha256": "a3aa77520089c3663206257c333faa1c3a5fb88ae08101043081eeef28ec56b1"
+        },
+        "config": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D1/20261028-105142/config.yaml",
+          "sha256": "3fc283167d15f248c6f7b6a884c2bdcc857878520558895958b0758b60f86366"
+        },
+        "source_patch": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D1/20261028-105142/acceleration.patch",
+          "sha256": "99824cb6d92e4bc358d1cc8a4aa92d40ebeeaa2bdf4654e2715ae9ff76023730"
+        },
+        "source_snapshot": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D1/20261028-105142/acceleration_source_snapshot.json",
+          "sha256": "9c41e6fd29a5e42860ea9fec936995f35af8787d0b2b5c3e6e6e0e657dfae23a"
+        }
+      },
+      "precise_ddp_resume_supported": false
+    },
+    "D2": {
+      "run_id_utc": "20261028-110203",
+      "run_directory_local": "/home/tanyuejun/LeCen_accel/runs/D2/20261028-110203",
+      "gpus": [
+        4,
+        5
+      ],
+      "launcher_failure_beijing": "2026-10-28T19:38:14+08:00",
+      "last_successful_optimizer_step": 3694,
+      "attempt_that_failed": "forward immediately after the last successful update",
+      "last_training_log_row": {
+        "step": 3694.0,
+        "exist": 0.1417264733463525,
+        "l1": 1.0633456707000732,
+        "giou": 1.5105721950531006,
+        "hm": 0.2657488044351339,
+        "size": 0.3221876621246338,
+        "lr": 0.0001989728921231,
+        "grad_norm": 25.50270271301269,
+        "skipped": 9.0
+      },
+      "last_validation": {
+        "step": 2000.0,
+        "CPM": 0.5791505791505792,
+        "sens@1FP": 0.5945945945945946,
+        "sens@1FP_3-6mm": 0.4333333333333333,
+        "chain_retained": 1.0,
+        "chain_hm": 0.8918918918918919,
+        "chain_dec": 0.8648648648648649,
+        "chain_nms": 0.8558558558558559,
+        "chain_work": 0.5765765765765766
+      },
+      "ordinary_checkpoints": {
+        "best.pt": {
+          "saved_step": 2000,
+          "bytes": 179403944
+        },
+        "last.pt": {
+          "saved_step": 2000,
+          "bytes": 179403944
+        }
+      },
+      "error_type": "ValueError",
+      "error_message": "matrix contains invalid numeric entries",
+      "error_site": "losses/matching.py:hungarian_match -> scipy.optimize.linear_sum_assignment",
+      "failure_snapshot": {
+        "local_path": "/data/tanyuejun/_management/LeCen/failures/D2_step3694_rank0_3870568_1793187451699535724.pt",
+        "bytes": 618570463,
+        "sha256": "ae8f938d685c4acc3bb541b788731029dbef5f3f325190fffc6230c493be1c74",
+        "saved_keys": [
+          "model",
+          "recovery",
+          "optimizer",
+          "scheduler",
+          "scaler",
+          "batch",
+          "step",
+          "skipped",
+          "error",
+          "torch_rng",
+          "cuda_rng"
+        ],
+        "step": 3694,
+        "skipped": 9,
+        "scaler": {
+          "scale": 256.0,
+          "growth_factor": 2.0,
+          "backoff_factor": 0.5,
+          "growth_interval": 2000,
+          "_growth_tracker": 1694
+        },
+        "binary_uploaded": false
+      },
+      "artifacts": {
+        "process_log": {
+          "local_path": "/data/tanyuejun/_management/LeCen/logs/train_D2_restart.log",
+          "sha256": "37a38fb9ab6542e18f24ef804bffc01db86a90dc6bbf689b2551c932bd8da55a"
+        },
+        "train_log": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D2/20261028-110203/train_log.csv",
+          "sha256": "24a35480fd1182d7688b914efbc8f62e3d69f43b80764dcc38f1d61bc2ac95c4"
+        },
+        "val_metrics": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D2/20261028-110203/val_metrics.csv",
+          "sha256": "8eebf6cdc7851ddf1a61bf238fe6e666de9bcbca2a3eef850d1ae27f6ca6bb86"
+        },
+        "config": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D2/20261028-110203/config.yaml",
+          "sha256": "a940e9cdb396288b81134da870777bc161534265e6fab94b782e5b70e637ce42"
+        },
+        "source_patch": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D2/20261028-110203/acceleration.patch",
+          "sha256": "99824cb6d92e4bc358d1cc8a4aa92d40ebeeaa2bdf4654e2715ae9ff76023730"
+        },
+        "source_snapshot": {
+          "local_path": "/home/tanyuejun/LeCen_accel/runs/D2/20261028-110203/acceleration_source_snapshot.json",
+          "sha256": "9c41e6fd29a5e42860ea9fec936995f35af8787d0b2b5c3e6e6e0e657dfae23a"
+        }
+      },
+      "precise_ddp_resume_supported": false
+    }
+  },
+  "original_worktree": {
+    "tracked_files_checked": 79,
+    "changed_files": []
+  },
+  "publication_validation": {
+    "command": "CUDA_VISIBLE_DEVICES= PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 python -m pytest -q -p no:cacheprovider tests/test_infer_batch.py tests/test_failure_snapshot.py tests/test_amp_step.py tests/test_matching.py tests/test_empty_cases.py tests/test_determinism.py::test_sampler_sequence tests/test_determinism.py::test_ddp_partition_matches_single",
+    "result": "21 passed in 2.45s",
+    "exit_code": 0,
+    "diff_check": "passed",
+    "scope": "CPU regression checks; does not validate long-run numerical stability or full training-curve determinism"
+  },
+  "published_payload": "Error report, aggregate evidence and checksums only; historical code changes and tests are not merged into main. No images, case identifiers, batch tensors, model weights or failure snapshot binaries.",
+  "historical_inference_benchmark": {
+    "cohort": "validation",
+    "cases": 89,
+    "changed_case_count": 5,
+    "seconds": {
+      "4": 212.87920819412102,
+      "8": 192.18530786287738
+    },
+    "metrics": {
+      "4": {
+        "cpm": 0.4388674388674389,
+        "sens@1": 0.4774774774774775,
+        "sens1fp_3to6": 0.38333333333333336
+      },
+      "8": {
+        "cpm": 0.4388674388674389,
+        "sens@1": 0.4774774774774775,
+        "sens1fp_3to6": 0.38333333333333336
+      }
+    },
+    "speedup": 1.10767680714703,
+    "all_arrays_exactly_equal": false,
+    "infer_batch_used_in_failed_training": 4
+  },
+  "historical_branch": "perf/inference-batch",
+  "archival": {
+    "target_branch": "main",
+    "contents": "error_report_and_aggregate_evidence_only",
+    "implementation_changes_merged": false,
+    "historical_code_commit": "f9a1c41fdaa23f9102f17ee13ff971bd7de99dcc",
+    "validation_applies_to": "historical acceleration code; newly added tests are not included on main"
+  }
+}
