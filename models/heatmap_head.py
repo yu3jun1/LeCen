@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from common.boxes import size_from_log
 from common.sampling import from_level
 
 
@@ -22,10 +23,12 @@ class HeatmapHead(nn.Module):
 
     @staticmethod
     def candidates(hm, size, stride, n, kernel):
-        """sigmoid → k³ 最大池化去重 → top-N；层坐标换回 patch 体素坐标 u = (u_L + 0.5)·s_L − 0.5。"""
+        """sigmoid → k³ 最大池化去重 → top-N；层坐标换回 patch 体素坐标 u = (u_L + 0.5)·s_L − 0.5。
+        候选点大多不在正例中心，其 log 尺寸未受监督，经 size_from_log 限制范围。"""
         h = hm.detach().float().sigmoid()
         score = (h * (h == F.max_pool3d(h, kernel, 1, kernel // 2))).flatten(1)
         idx = score.topk(n, 1).indices
         level_zyx = torch.stack(torch.unravel_index(idx, hm.shape[2:]), -1).float()
-        ref_size = size.detach().float().flatten(2).gather(2, idx[:, None].expand(-1, 3, -1)).transpose(1, 2).exp()
-        return from_level(level_zyx, stride), ref_size
+        log_size = size.detach().float().flatten(2).gather(2, idx[:, None].expand(-1, 3, -1)).transpose(1, 2)
+        patch = torch.tensor(hm.shape[2:], dtype=torch.float32, device=hm.device) * stride
+        return from_level(level_zyx, stride), size_from_log(log_size, patch)

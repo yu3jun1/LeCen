@@ -1,9 +1,11 @@
-"""构造的框能得到预期匹配；无 GT 时返回空匹配；忽略区域规则正确。"""
+"""构造的框能得到预期匹配；无 GT 时返回空匹配；忽略区域规则正确；未受监督位置的极端输出下匹配代价仍有限。"""
 import torch
 from omegaconf import OmegaConf
 
 from losses.det_loss import layer_loss
 from losses.matching import hungarian_match
+from models.det_head import DetHead
+from models.heatmap_head import HeatmapHead
 
 CFG = OmegaConf.create({"loss": {"match_cost": {"cls": 2.0, "l1": 5.0, "giou": 2.0},
                                  "exist_focal": {"alpha": 0.25, "gamma": 2.0}}})
@@ -43,3 +45,19 @@ def test_ignore_rule():
     # 匹配的正例优先：即使中心在忽略区域内也计正例损失
     batch["ignore"] = [torch.tensor([[20.0, 50, 60, 5, 5, 5]])]
     assert torch.isclose(layer_loss(layer, batch, match, CFG, PATCH, False)[0], base)
+
+
+def test_extreme_outputs_keep_cost_finite():
+    """候选点 log 尺寸与逐层 Δlog 尺寸极大时（此前 GIoU 中 inf − inf → NaN，匹配报 invalid numeric entries）。"""
+    hm = torch.zeros(1, 1, 20, 48, 48)
+    hm[0, 0, 10, 24, 24] = 5.0
+    ref_c, ref_s = HeatmapHead.candidates(hm, torch.full((1, 3, 20, 48, 48), 1e4), 4, 8, 3)
+    assert torch.equal(ref_s, (2 * PATCH).expand_as(ref_s))
+    head = DetHead(16)
+    torch.nn.init.constant_(head.box[-1].bias, 200.0)
+    exist, box = head(torch.randn(1, 8, 16), ref_c, ref_s, PATCH)
+    assert torch.isfinite(box).all() and (box[0, :, 3:] == 2 * PATCH).all()
+    row, col = hungarian_match(exist[0], box[0], boxes(), PATCH, CFG.loss.match_cost, CFG.loss.exist_focal)
+    assert len(row) == 3
+    torch.nn.init.constant_(head.box[-1].bias, -200.0)
+    assert (head(torch.randn(1, 8, 16), ref_c, ref_s, PATCH)[1][0, :, 3:] == 1).all()

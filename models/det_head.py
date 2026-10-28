@@ -1,8 +1,10 @@
-"""逐层存在性与框细化 head：预测 Δ中心（相对参考框尺寸）与 Δlog 尺寸。"""
+"""逐层存在性与框细化 head：预测 Δ中心（相对参考框尺寸）与 Δlog 尺寸；新尺寸经 size_from_log 限制范围。"""
 import math
 
 import torch
 import torch.nn as nn
+
+from common.boxes import size_from_log
 
 
 class DetHead(nn.Module):
@@ -14,7 +16,7 @@ class DetHead(nn.Module):
         nn.init.zeros_(self.box[-1].weight)
         nn.init.zeros_(self.box[-1].bias)
 
-    def forward(self, q, center, size):
+    def forward(self, q, center, size, patch_zyx):
         d = self.box(q).float()
-        box = torch.cat([center + d[..., :3] * size, size * d[..., 3:].exp()], -1)
+        box = torch.cat([center + d[..., :3] * size, size_from_log(size.log() + d[..., 3:], patch_zyx)], -1)
         return self.exist(q).squeeze(-1).float(), box

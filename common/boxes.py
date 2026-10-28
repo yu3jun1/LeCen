@@ -37,6 +37,15 @@ def giou3d(a, b):
     return iou_giou(a, b)[1]
 
 
+def size_from_log(log_size, patch_zyx):
+    """log 尺寸 → 尺寸（patch 体素），每轴限制在 [1, 2 × patch 尺寸]。
+
+    参考框与逐层框的尺寸都由指数得到；未受监督的候选点与未匹配 query 上 log 尺寸不受约束，
+    达到约 30 时框体积在 float32 中溢出，GIoU 出现 inf − inf，匹配代价变为 NaN。
+    """
+    return log_size.clamp(min=torch.zeros_like(patch_zyx), max=(2 * patch_zyx).log()).exp()
+
+
 def norm_box(b, patch_zyx):
     """L1 使用的归一化：中心 / patch 尺寸，尺寸取 log。"""
     return torch.cat([b[..., :3] / patch_zyx, b[..., 3:].log()], -1)
