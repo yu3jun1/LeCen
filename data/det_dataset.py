@@ -15,6 +15,7 @@ import torch
 from torch.utils.data import Dataset, Sampler
 
 from common.coords import affine_of, flip_vox
+from common.dist import rank, world
 from common.io import read_image, read_json, read_npz
 from common.seed import generator, sample_seed
 
@@ -137,10 +138,14 @@ def to_device(batch, dev):
 
 
 class PatchSampler(Sampler):
-    """无限采样 (病例下标, 是否正例中心, 样本种子)；使用独立 Generator，序列与 worker 数无关。"""
+    """无限采样 (病例下标, 是否正例中心, 样本种子)；使用独立 Generator，序列与 worker 数无关。
 
-    def __init__(self, n_cases, pos_cases, pos_fraction, seed):
+    每个 rank 生成同一条全局序列，只取全局下标 ≡ rank (mod world) 的样本，序列与卡数无关。
+    """
+
+    def __init__(self, n_cases, pos_cases, pos_fraction, seed, rank, world):
         self.n, self.pos_cases, self.pos_fraction, self.seed = n_cases, pos_cases, pos_fraction, seed
+        self.rank, self.world = rank, world
 
     def __iter__(self):
         g = generator(self.seed)
@@ -150,7 +155,8 @@ class PatchSampler(Sampler):
                 pos = torch.rand(1, generator=g).item() < self.pos_fraction
                 k = (self.pos_cases[torch.randint(len(self.pos_cases), (1,), generator=g).item()] if pos
                      else torch.randint(self.n, (1,), generator=g).item())
-                yield k, pos, sample_seed(self.seed, epoch, i)
+                if (epoch * self.n + i) % self.world == self.rank:
+                    yield k, pos, sample_seed(self.seed, epoch, i)
             epoch += 1
 
 
@@ -164,5 +170,5 @@ def luna_dataset(cfg, split, augment):
 def loader(cfg, ds, seed):
     pos = [k for k, cid in enumerate(ds.ids) if read_json(Path(ds.dirs[2]) / f"{cid}.json")["instances"]]
     return iter(torch.utils.data.DataLoader(
-        ds, batch_size=cfg.train.batch, sampler=PatchSampler(len(ds.ids), pos, cfg.pos_fraction, seed),
+        ds, batch_size=cfg.train.batch // world(), sampler=PatchSampler(len(ds.ids), pos, cfg.pos_fraction, seed, rank(), world()),
         num_workers=cfg.train.workers, collate_fn=collate, pin_memory=True, persistent_workers=cfg.train.workers > 0))

@@ -1,6 +1,7 @@
 # Lesion-Centric World Model Design
 
 Lesion-Centric CT 世界模型第一轮核心实验代码：检测 D0a / D1 / D2，生存 S0–S5（S3 仅在治疗有变化时运行），机制检查（恢复梯度、打乱 h、信息丢失链）。
+第一版只用固定划分与单一随机种子，不做多折与重复种子实验。
 
 ## 环境
 
@@ -44,8 +45,9 @@ pytest tests/ -k "coords or sampling or lidc or ctclip or crop or eval_oracle or
 
 # 检测
 python -m tools.make_init --cfg configs/det/D1.yaml --seed 1000
-python -m engine.train_det --cfg configs/det/D1.yaml
+python -m engine.train_det --cfg configs/det/D1.yaml                              # 单卡
 python -m engine.train_det --cfg configs/det/D2.yaml
+torchrun --nproc_per_node=<GPU 数> -m engine.train_det --cfg configs/det/D1.yaml   # DDP
 python -m engine.infer_det --run runs/D1/<run_id> --split val          # 确定 p_min
 python -m engine.infer_det --run runs/D1/<run_id> --split test --final
 python -m eval.froc --run runs/D1/<run_id> --split test
@@ -57,13 +59,21 @@ python -m engine.infer_det --run runs/D0a/<name> --split test --final --monai-js
 
 # 临床
 python -m eval.recall_chain --run runs/D1/<run_id> --split val --cohort clinical
-python -m engine.adapt_clinical --extractor runs/D1/<id> adapt.iters=<步数>   # 仅在覆盖不足时
+python -m engine.adapt_clinical --extractor runs/D1/<id> adapt.iters=<步数>   # 仅在覆盖不足时；也可用 torchrun 启动
 python -m engine.extract_slots --extractor runs/D1/<id>
 python -m engine.extract_slots --extractor runs/D2/<id>
 python -m engine.train_surv --cfg configs/clin/S5.yaml slots.extractor=runs/D1/<id>
 python -m eval.surv_eval --run runs/S5/<run_id> --final
 python -m eval.compare --a runs/S5/<id> --b runs/S2/<id> --metrics cindex_ipcw --bootstrap 2000
 ```
+
+## DDP
+
+检测训练与临床定位适配可用 `torchrun` 启动（NCCL）。`train.batch` 是全局 batch，按卡均分，需能被卡数整除；
+采样器在每个 rank 上生成同一条全局样本序列并按下标取模分配，所以任意卡数下每个全局 batch 的样本相同。
+多卡时损失加入 0·Σp（`ddp.zero_loss_for_unused`），某个 rank 某步没有可恢复病灶或没有 GT 时参数仍在计算图中。
+验证集按 rank 分片推理后汇总；日志、检查点与运行目录只由主进程写。D1 与 D2 须使用相同的卡数。
+推理、评测、slot 提取与生存训练为单卡。
 
 ## 约定
 

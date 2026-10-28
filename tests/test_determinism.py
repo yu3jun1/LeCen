@@ -12,8 +12,19 @@ LOSS_RTOL = 1e-2
 
 
 def test_sampler_sequence():
-    seq = [list(itertools.islice(iter(PatchSampler(50, [1, 3, 7, 20], 0.5, 2000)), 500)) for _ in range(2)]
+    seq = [list(itertools.islice(iter(PatchSampler(50, [1, 3, 7, 20], 0.5, 2000, 0, 1)), 500)) for _ in range(2)]
     assert seq[0] == seq[1]
+
+
+def test_ddp_partition_matches_single():
+    """DDP 下各 rank 的第 t 个 batch 合起来等于单卡的第 t 个全局 batch。"""
+    batch, world = 4, 2
+    single = list(itertools.islice(iter(PatchSampler(50, [1, 3, 7, 20], 0.5, 2000, 0, 1)), 400))
+    ranks = [list(itertools.islice(iter(PatchSampler(50, [1, 3, 7, 20], 0.5, 2000, r, world)), 200)) for r in range(world)]
+    per = batch // world
+    for t in range(100):
+        merged = sorted(x for r in ranks for x in r[t * per:(t + 1) * per])
+        assert merged == sorted(single[t * batch:(t + 1) * batch])
 
 
 def test_train_200_steps():
