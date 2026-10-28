@@ -4,7 +4,7 @@ paths:
   luna16_annotations: ???    # annotations.csv
   luna16_excluded: ???       # evaluationScript/annotations/annotations_excluded.csv
   raw_clinical: ???          # 临床 DICOM 下载目录
-  clinical_series: ???       # csv: patient_id, series_uid（资格核验确定的治疗前基线 CT）
+  clinical_series: ???       # csv: patient_id, series_uid（资格核验确定的治疗前基线 CT，一患者一行）
   clinical_table: ???        # 原始临床表
   processed: ???
   meta: ???
@@ -32,7 +32,7 @@ preprocess:
       body_hu: -500
 ctclip:
   checkpoint: ???
-  token_layer: ???              # CTViT 中输出 (1, 24, 24, 24, 512) token 网格的模块名
+  token_layer: ???              # CTViT 中直接输出 (1, z, x, y, 512) = (1, 24, 24, 24, 512) token 网格的模块名（"" 为 encoder 本身）
   pooled_grid: [12, 12, 12]
   dtype: float16
 clinical:
@@ -43,6 +43,7 @@ clinical:
     event: ???
     treatment: ???
   event_values: ???             # 原始事件列中表示事件发生的取值
+  censor_values: ???            # 表示删失的取值；两者之外的取值视为结局未知，不进入合格队列
   covariates: ???               # 临床协变量列名
 splits:
   det: {train: [0, 1, 2, 3, 4, 5, 6], val: [7], test: [8, 9]}

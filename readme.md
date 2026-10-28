@@ -21,11 +21,11 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 | `paths.luna16_seg` | seg-lungs-LUNA16 解压目录 |
 | `paths.luna16_annotations` / `paths.luna16_excluded` | `annotations.csv` / `annotations_excluded.csv` |
 | `paths.raw_clinical` | 临床 DICOM 下载目录 |
-| `paths.clinical_series` | 资格核验确定的治疗前基线 CT：`patient_id, series_uid` |
+| `paths.clinical_series` | 资格核验确定的治疗前基线 CT：`patient_id, series_uid`（一患者一行） |
 | `paths.clinical_table` | 原始临床表 |
 | `paths.processed` / `paths.meta` / `paths.cache` | 输出目录 |
 | `ctclip.checkpoint` / `ctclip.token_layer` | CT-CLIP 权重；CTViT 中输出 (1, 24, 24, 24, 512) token 网格的模块名 |
-| `clinical.columns` / `clinical.event_values` / `clinical.covariates` | 临床表列名映射 |
+| `clinical.columns` / `clinical.event_values` / `clinical.censor_values` / `clinical.covariates` | 临床表列名映射；事件与删失的原始取值（其余取值视为结局未知） |
 | `configs/det/base.yaml: adapt.iters` | 临床定位适配步数（仅在覆盖不足时） |
 | `configs/clin/*.yaml: slots.extractor` | 提取器运行目录（S1/S2/S3/S5 用 D1，S4 用 D2） |
 
@@ -38,8 +38,8 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 python -m data.crop_rules --cfg configs/data.yaml --fit-on train      # 确定外扩量并写回配置
 python -m data.prep_luna16 --cfg configs/data.yaml --subset 0          # 逐个子集 0…9
 python -m data.build_instances --cfg configs/data.yaml
-python -m data.make_splits --cfg configs/data.yaml
-python -m data.prep_clinical --cfg configs/data.yaml
+python -m data.make_splits --cfg configs/data.yaml      # 同时确定临床合格队列：meta/clinical.csv、clinical_excluded.csv
+python -m data.prep_clinical --cfg configs/data.yaml    # 只处理合格队列中的基线 CT
 python -m data.crop_rules --cfg configs/data.yaml --audit             # 事后保留率审计
 pytest tests/ -k "coords or sampling or lidc or ctclip or crop or eval_oracle or dataset"
 

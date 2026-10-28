@@ -5,7 +5,7 @@ torchrun --nproc_per_node=<GPU 数> -m engine.adapt_clinical --extractor runs/D1
 
 每个 optimizer 步混合一个临床训练批次与一个 LUNA16 训练批次（1:1）；D1、D2 使用完全相同的 LUNA16 批次（同一数据种子）。
 临床批次（部分标注）：已标注肿瘤匹配后计算存在性正例、L1 与 GIoU；与某个已标注肿瘤 3D IoU > 0.3 的未匹配 query 作为负例；
-其余未匹配 query 存在性权重为 0。LUNA16 批次：完整检测损失；D1 额外计算恢复损失（只在 LUNA16 批次上）。
+其余未匹配 query 存在性权重为 0；热图只计已标注肿瘤中心的正例与尺寸（候选来自热图，覆盖不足首先要在这里修正）。LUNA16 批次：完整检测损失；D1 额外计算恢复损失（只在 LUNA16 批次上）。
 AMP 与梯度裁剪顺序、DDP 方式同训练。适配后的权重存为新运行目录的 checkpoints/best.pt，提取 slot 时得到新的 extractor_hash。
 """
 import argparse

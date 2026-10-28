@@ -23,8 +23,10 @@ from models.clinical import ClinicalModel
 
 
 def fit_cox(cfg, df, x, times):
-    cols = pd.concat([x, pd.get_dummies(df.treatment, prefix="treatment", dtype=float)], axis=1)
+    """治疗 one-hot 以首个类别为参照；只保留训练集上方差非零的列（例如治疗只有一类时不进入模型）。"""
     tr = (df.split == "train").to_numpy()
+    cols = pd.concat([x, pd.get_dummies(df.treatment, prefix="treatment", drop_first=True, dtype=float)], axis=1)
+    cols = cols.loc[:, cols[tr].std() > 0]
     cph = CoxPHFitter(penalizer=cfg.cox.penalizer)
     cph.fit(pd.concat([cols[tr], df.loc[tr, ["time_days", "event"]]], axis=1), "time_days", "event")
     return lambda m: cph.predict_survival_function(cols[m], times=times).T.to_numpy()

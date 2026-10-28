@@ -2,7 +2,8 @@
 
 检测：训练 subset0–6，验证 subset7，测试 subset8–9；用 pylidc 的 patient_id 检查跨划分患者，
 把这类患者的全部扫描移入训练集并记录。同时按 MONAI 教程格式写出 D0a 的数据列表。
-临床：60/20/20，按 (event, treatment) 分层，种子 2026，只使用一次。
+临床：在合格队列（clinical_cohort）上 60/20/20，按 (event, treatment) 分层，种子 2026，只使用一次；
+同时写出 meta/clinical.csv（合格患者的清洗后临床表，含 series_uid）与 meta/clinical_excluded.csv。
 
 python -m data.make_splits --cfg configs/data.yaml
 """
@@ -15,7 +16,7 @@ import pylidc as pl
 
 from common.boxes import luna_to_monai
 from common.io import load_config, write_csv, write_json
-from data.prep_clinical import clean_table
+from data.prep_clinical import clinical_cohort
 
 
 def det_splits(cfg):
@@ -44,9 +45,9 @@ def monai_datalist(cfg, det):
     return out
 
 
-def clin_splits(cfg):
+def clin_splits(cfg, cohort):
     c = cfg.splits.clin
-    df = clean_table(cfg)[["patient_id", *c.stratify]].copy()
+    df = cohort[["patient_id", *c.stratify]].copy()
     df["stratum"] = df[list(c.stratify)].astype(str).agg("|".join, axis=1)
     rng = np.random.default_rng(c.seed)
     df["split"] = ""
@@ -69,6 +70,10 @@ if __name__ == "__main__":
     write_csv(meta / "splits_det.csv", det)
     write_json(meta / "monai_datalist_det.json", monai_datalist(cfg, det))
     print(det.groupby("split").size().to_string(), f"\nmoved: {int(det.moved.sum())}")
-    clin = clin_splits(cfg)
+    cohort, excluded = clinical_cohort(cfg)
+    write_csv(meta / "clinical.csv", cohort)
+    write_csv(meta / "clinical_excluded.csv", excluded)
+    print(f"临床合格 {len(cohort)}，排除 {len(excluded)}：", excluded.reason.value_counts().to_dict())
+    clin = clin_splits(cfg, cohort)
     write_csv(meta / "splits_clin.csv", clin)
     print(clin.groupby(["split", "stratum"]).size().to_string())

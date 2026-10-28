@@ -1,6 +1,7 @@
 """读取 slot 缓存与临床表。
 
-临床变量的标准化与缺失处理只在训练集上拟合（训练集均值/标准差；缺失按训练集均值填补，缺失指示保留在表中）。
+临床变量的标准化与缺失处理只在训练集上拟合：只保留训练集上方差非零的列（列表随之冻结用于验证、测试），
+按训练集均值/标准差标准化，缺失按训练集均值填补，缺失指示保留在表中。
 slot 按 selection_<sel_hash>.csv 选择后补齐到批内最大 K；空集合患者 mask 全 0、empty = 1。
 """
 from pathlib import Path
@@ -11,7 +12,7 @@ import torch
 
 from common.io import read_json, read_npz
 
-LABEL_COLS = ["patient_id", "time_days", "event", "treatment", "split"]
+LABEL_COLS = ["patient_id", "series_uid", "time_days", "event", "treatment", "split"]
 
 
 def load_table(cfg):
@@ -19,9 +20,9 @@ def load_table(cfg):
     clin = pd.read_csv(meta / "clinical.csv", dtype={"patient_id": str})
     splits = pd.read_csv(meta / "splits_clin.csv", dtype={"patient_id": str})[["patient_id", "split"]]
     df = clin.merge(splits, on="patient_id")
-    feats = [c for c in df.columns if c not in LABEL_COLS]
     tr = df.split == "train"
-    mu, sd = df.loc[tr, feats].mean(), df.loc[tr, feats].std().replace(0, 1)
+    feats = [c for c in df.columns if c not in LABEL_COLS and df.loc[tr, c].std() > 0]
+    mu, sd = df.loc[tr, feats].mean(), df.loc[tr, feats].std()
     x = ((df[feats] - mu) / sd).fillna(0.0)
     return df, x
 

@@ -4,6 +4,7 @@
 σ（每轴，层体素）= max(尺寸_patch体素 / (6·s_L), 1)；多个高斯取最大值。
 CenterNet 式 focal loss（α=2, β=4），按 max(正例数, 1) 归一化；忽略区域内的网格点不计负例损失。
 尺寸：在正例中心所在网格点上对 log 尺寸做 L1；无正例时为 0。
+临床部分标注（partial）：只计已标注肿瘤中心的正例与尺寸，不计负例（未标注病灶不当作背景）。
 """
 import torch
 import torch.nn.functional as F
@@ -25,7 +26,7 @@ def heatmap_targets(boxes, ignore, shape, stride):
     return tgt, ign, peak
 
 
-def heatmap_loss(hm_logit, size_pred, batch, stride, alpha=2.0, beta=4.0):
+def heatmap_loss(hm_logit, size_pred, batch, stride, partial=False, alpha=2.0, beta=4.0):
     l_hm, l_size, n_pos = 0.0, 0.0, 0
     for b, boxes in enumerate(batch["boxes"]):
         x = hm_logit[b, 0].float()
@@ -34,7 +35,7 @@ def heatmap_loss(hm_logit, size_pred, batch, stride, alpha=2.0, beta=4.0):
         p = x.sigmoid()
         l_pos = (1 - p) ** alpha * F.logsigmoid(x) * pos
         l_neg = p ** alpha * (1 - tgt) ** beta * F.logsigmoid(-x) * (~pos & ~ign)
-        l_hm = l_hm - (l_pos.sum() + l_neg.sum())
+        l_hm = l_hm - l_pos.sum() - (0 if partial else l_neg.sum())
         n_pos += len(boxes)
         if len(boxes):
             s = size_pred[b].float()[:, peak[:, 0], peak[:, 1], peak[:, 2]].T

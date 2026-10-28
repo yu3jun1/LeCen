@@ -2,6 +2,7 @@
 
 S5 / S4：r = pool([h_i + f(h_i, pool_g, e(a), e(c))])
 S2：     r0 = pool([h_i])；r = r0 + g(r0, pool_g, e(a), e(c))（g 与 f 同构）
+所有配置空集合时 r = 0、empty = 1（S2 的 g 不作用于空集合，与 S5 一致）。
 S3：     S5 去掉所有治疗输入（f 与 head 都不输入 e(a)）
 S1：     logits = head([pool_g; c; e(a)])
 其余：   logits = head([r; m; pool_g; c; e(a)])，m 为空集合指示
@@ -50,6 +51,6 @@ class ClinicalModel(nn.Module):
                 r = self.pool(h + self.update(torch.cat([h, cond[:, None].expand(-1, h.shape[1], -1)], -1)), mask)
             else:
                 r0 = self.pool(h, mask)
-                r = r0 + self.update(torch.cat([r0, cond], -1))
+                r = (r0 + self.update(torch.cat([r0, cond], -1))) * mask.any(1, keepdim=True)
             parts = [r, b["empty"][:, None], *parts]
         return self.head(torch.cat(parts, -1))

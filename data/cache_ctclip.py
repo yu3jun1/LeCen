@@ -64,7 +64,7 @@ def extract(image, encoder, token_layer, pooled_grid):
     hook = dict(encoder.named_modules())[token_layer].register_forward_hook(lambda m, i, o: feats.update(t=o))
     encoder(x.cuda(), return_encoded_tokens=True)
     hook.remove()
-    t = feats["t"].reshape(1, GRID, GRID, GRID, 512).permute(0, 4, 1, 2, 3).float()
+    t = feats["t"].permute(0, 4, 1, 2, 3).float()  # 要求 (1, 24, 24, 24, 512)，不 reshape 以免打乱 token 顺序
     t = F.adaptive_avg_pool3d(t, tuple(pooled_grid))[0].permute(1, 2, 3, 0).reshape(-1, 512)
     return t.cpu().numpy(), token_world(image, g, pooled_grid)
 

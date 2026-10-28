@@ -16,14 +16,12 @@ def config_hash(cfg):
     return hashlib.sha1(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True).encode()).hexdigest()
 
 
-def extractor_hash(cfg, ckpt_path):
-    """sha1(合并后的模型配置 + checkpoint 文件哈希 + preprocessing_version + ctclip 版本) 前 12 位。"""
-    parts = [
-        config_hash(cfg.model),
-        file_sha1(ckpt_path),
-        cfg.preprocess.version,
-        f"{cfg.ctclip.checkpoint}:{cfg.ctclip.token_layer}",
-    ]
+EXTRACTOR_KEYS = ["model", "patch_zyx", "infer", "preprocess", "ctclip"]
+
+
+def extractor_hash(cfg, ckpt_path, p_min):
+    """sha1(合并后影响提取的配置（模型、patch、推理、完整预处理、CT-CLIP）+ checkpoint 文件哈希 + p_min) 前 12 位。"""
+    parts = [config_hash(OmegaConf.masked_copy(cfg, EXTRACTOR_KEYS)), file_sha1(ckpt_path), repr(p_min)]
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:12]
 
 

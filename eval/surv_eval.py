@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from lifelines import KaplanMeierFitter
 from omegaconf import OmegaConf
+from scipy.integrate import trapezoid
 from sksurv.metrics import concordance_index_censored, concordance_index_ipcw
 from sksurv.nonparametric import CensoringDistributionEstimator
 from sksurv.util import Surv
@@ -50,7 +51,7 @@ def integrated_brier(y_train, time, event, surv, times):
     used = case.any(1)
     g_y[used] = cens.predict_proba(time[used])
     bs = (surv ** 2 * case / g_y[:, None] + (1 - surv) ** 2 * control / cens.predict_proba(times)[None]).mean(0)
-    return np.trapezoid(bs, times) / (times[-1] - times[0])
+    return trapezoid(bs, times) / (times[-1] - times[0])
 
 
 def metrics(y_train, time, event, risk, surv, times, tau):

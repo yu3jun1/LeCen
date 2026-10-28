@@ -82,15 +82,14 @@ def optimizer_step(params, optimizer, scaler, scheduler, clip_norm):
 
 
 def compute_loss(model, recovery, batch, cfg, patch, partial=False):
-    """L = w_hm·L_hm + w_size·L_size + Σ_layers(…) + w_local·L_local。部分标注批次（临床）不计热图损失。"""
+    """L = w_hm·L_hm + w_size·L_size + Σ_layers(…) + w_local·L_local。部分标注批次（临床）的热图只计正例与尺寸。"""
     w = cfg.loss.w
     out = model(batch["image"], batch["tokens"], batch["token_xyz"], batch)
     matches = match_layers(out, batch["boxes"], cfg, patch)
     l_det, log = det_losses(out, batch, matches, cfg, patch, partial)
-    if not partial:
-        l_hm, l_size = heatmap_loss(out["hm"], out["size"], batch, cfg.model.heatmap.level)
-        l_det = l_det + w.hm * l_hm + w.size * l_size
-        log.update(hm=l_hm, size=l_size)
+    l_hm, l_size = heatmap_loss(out["hm"], out["size"], batch, cfg.model.heatmap.level, partial)
+    l_det = l_det + w.hm * l_hm + w.size * l_size
+    log.update(hm=l_hm, size=l_size)
     loss, terms = l_det, {"det": l_det}
     if recovery is not None:
         l_local, n_used, n_zero = recovery_term(recovery, out, batch, matches[-1], cfg, patch)
