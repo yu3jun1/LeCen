@@ -31,6 +31,8 @@ def clinical_cohort(cfg):
     返回 (合格患者的临床表（含 series_uid）, 排除记录 patient_id/reason)。
     """
     c = cfg.clinical
+    if not cfg.paths.clinical_series:
+        raise ValueError("paths.clinical_series 尚未配置已核验的治疗前基线 CT 清单；候选表不能直接用于训练")
     raw = pd.read_csv(cfg.paths.clinical_table, dtype={c.columns.patient_id: str})
     series = pd.read_csv(cfg.paths.clinical_series, dtype={"patient_id": str})
     for name, ids in (("临床表", raw[c.columns.patient_id]), ("基线 CT 清单", series.patient_id)):
@@ -70,6 +72,20 @@ def download(cfg, series_uids):
                                    dirTemplate="%SeriesInstanceUID")
 
 
+def series_directory(root, series_uid):
+    """优先读取 IDC 的 series_uid/；否则查找本机 TCIA 的 patient_id/study_uid/series_uid/。"""
+    root = Path(root)
+    direct = root / series_uid
+    if direct.is_dir():
+        return direct.resolve()
+    matches = {p.resolve() for p in root.glob(f"*/*/{series_uid}") if p.is_dir()}
+    if not matches:
+        raise FileNotFoundError(f"找不到 DICOM 序列 {series_uid}，搜索目录：{root}")
+    if len(matches) != 1:
+        raise ValueError(f"DICOM 序列 {series_uid} 有多个目录，需先核验：{sorted(map(str, matches))}")
+    return matches.pop()
+
+
 def read_series(d):
     reader = sitk.ImageSeriesReader()
     reader.SetFileNames(reader.GetGDCMSeriesFileNames(str(d)))
@@ -95,7 +111,7 @@ def main(cfg):
     encoder, lm = load_encoder(cfg.ctclip.checkpoint), LMInferer()
     crops = []
     for r in series.itertuples():
-        img = read_series(Path(p.raw_clinical) / r.series_uid)
+        img = read_series(series_directory(p.raw_clinical, r.series_uid))
         cache(Path(p.cache) / "ctclip" / f"{r.patient_id}.npz", img, encoder, cfg)
         out, rec = preprocess(img, lm.apply(img), cfg.preprocess.crop.clinical, cfg)
         write_image(out, proc / "clinical" / f"{r.patient_id}.nii.gz")

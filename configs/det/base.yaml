@@ -26,5 +26,5 @@ infer: {overlap: 0.25, p_min: 0.05, nms: center_distance, nms_radius_scale: 0.5}
 adapt:
   iters: ???                # 临床定位适配步数，仅在覆盖不足时使用
 seeds: {init: 1000, recovery_init: 1001, data: 2000}
-init_ckpt: runs/init/init.pt
+init_ckpt: /data/tanyuejun/_shared/checkpoints/LeCen/init.pt
 ddp: {zero_loss_for_unused: true}

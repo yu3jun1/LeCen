@@ -12,7 +12,9 @@ D1 与 D2 须使用相同的卡数。
 """
 import argparse
 import math
+import os
 from pathlib import Path
+import time
 
 import pandas as pd
 import torch
@@ -154,6 +156,21 @@ def save(path, model, recovery, step):
     torch.save({"model": model.state_dict(), "recovery": recovery.state_dict() if recovery else None, "step": step}, path)
 
 
+def save_failure(cfg, model, recovery, optimizer, scheduler, scaler, batch, step, skipped, error):
+    """Opt-in diagnostics for a failed forward; no automatic training resume."""
+    directory = cfg.train.get("failure_dir", None)
+    if directory is None:
+        return
+    path = Path(directory) / f"{cfg.name}_step{step}_rank{rank()}_{os.getpid()}_{time.time_ns()}.pt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"model": model.state_dict(), "recovery": recovery.state_dict() if recovery else None,
+                "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
+                "scaler": scaler.state_dict(), "batch": batch, "step": step, "skipped": skipped,
+                "error": str(error), "torch_rng": torch.get_rng_state(),
+                "cuda_rng": torch.cuda.get_rng_state() if torch.cuda.is_initialized() else None}, path)
+    print(f"Saved failure diagnostic: {path}", flush=True)
+
+
 def train(cfg):
     set_determinism()
     dev = setup()
@@ -172,8 +189,12 @@ def train(cfg):
         logs = []
         for micro in range(cfg.train.accum_steps):
             batch = to_device(next(batches), dev)
-            with torch.autocast("cuda", dtype=torch.float16, enabled=cfg.train.amp):
-                loss, [(_, log, out, terms)] = ddp([(batch, False)])
+            try:
+                with torch.autocast("cuda", dtype=torch.float16, enabled=cfg.train.amp):
+                    loss, [(_, log, out, terms)] = ddp([(batch, False)])
+            except (ValueError, RuntimeError) as exc:
+                save_failure(cfg, model, recovery, optimizer, scheduler, scaler, batch, step, skipped, exc)
+                raise
             if not checked and log["n_rec"] > 0:
                 write_json(run / "mech" / "grad_check.json", {"step": step, **grad_check(model, out, terms, scaler)})
                 checked = True

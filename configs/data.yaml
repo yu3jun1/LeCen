@@ -1,22 +1,24 @@
 paths:
-  raw_luna16: ???            # 含 subset0.zip … subset9.zip，逐子集解压到 subset<N>/
-  luna16_seg: ???            # seg-lungs-LUNA16 解压目录（<seriesuid>.mhd）
-  luna16_annotations: ???    # annotations.csv
-  luna16_excluded: ???       # evaluationScript/annotations/annotations_excluded.csv
-  raw_clinical: ???          # 临床 DICOM 下载目录
-  clinical_series: ???       # csv: patient_id, series_uid（资格核验确定的治疗前基线 CT，一患者一行）
-  clinical_table: ???        # 原始临床表
-  processed: ???
-  meta: ???
-  cache: ???
+  raw_luna16: /data/tanyuejun/LUNA16/processed/LeCen/_scratch/raw_workspace  # 包含原始 ZIP 的软链接；解压也在此目录
+  luna16_seg: /data/tanyuejun/LUNA16/raw/seg_lungs/seg-lungs-LUNA16
+  luna16_annotations: /data/tanyuejun/LUNA16/meta/annotations.csv
+  luna16_excluded: /data/tanyuejun/LUNA16/raw/evaluation/evaluationScript/annotations/annotations_excluded.csv
+  luna16_evaluation_script: /home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py
+  raw_clinical: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom  # patient_id/study_uid/series_uid/
+  clinical_series: null      # 待核验：正式 CSV 必须为 patient_id,series_uid，一患者一行；不能使用下方候选表替代
+  clinical_series_candidates: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/acrin_baseline_series.csv
+  clinical_table: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/clinical_acrin.csv
+  processed: /data/tanyuejun/LUNA16/processed/LeCen
+  meta: /data/tanyuejun/LUNA16/meta/LeCen
+  cache: /data/tanyuejun/_shared/cache/LeCen
 preprocess:
-  version: pp_v1
+  version: lecen_pp_v1_ctclip_v2_mean12_20261028
   spacing_zyx: [1.25, 0.703125, 0.703125]
   hu_clip: [-1000, 400]         # x = (clip(HU) + 1000) / 1400
   crop:
     luna:
       mode: lung_bbox           # 肺外接框裁剪，不对肺外像素清零
-      margin_mm: null           # 由 crop_rules.py 在训练集上确定后写入
+      margin_mm: 10.0           # 已按训练集确定，与现有 888 例预处理和 token 缓存一致
       safety_mm: 5
       fit_margins_mm: [0, 5, 10, 15, 20, 25, 30]
       lung_labels: [3, 4]       # seg-lungs-LUNA16 左右肺
@@ -31,14 +33,14 @@ preprocess:
       fallback_mode: body_bbox  # HU 阈值 + 最大连通域
       body_hu: -500
 ctclip:
-  checkpoint: ???
-  token_layer: ???              # CTViT 中直接输出 (1, z, x, y, 512) = (1, 24, 24, 24, 512) token 网格的模块名（"" 为 encoder 本身）
+  checkpoint: /data/tanyuejun/_shared/weights/ctclip/CT-CLIP_v2.pt
+  token_layer: ""               # encoder 本身；与现有缓存一致，输出 (1, 24, 24, 24, 512)
   pooled_grid: [12, 12, 12]
   dtype: float16
 clinical:
   collection: acrin_nsclc_fdg_pet
   columns:
-    patient_id: ???
+    patient_id: patient_id
     time_days: ???              # 相对统一时间起点的天数
     event: ???
     treatment: ???

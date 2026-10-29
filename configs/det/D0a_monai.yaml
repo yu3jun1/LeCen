@@ -3,6 +3,7 @@
 # 数据列表由 data/make_splits.py 写到 <meta>/monai_datalist_det.json（教程格式，世界坐标 cccwhd）。
 # MONAI 推理输出经 engine/infer_det.py --monai-json 转为官方 csv，走同一评测流程。
 defaults: [../data.yaml]
+bundle_root: /data/tanyuejun/_shared/weights/monai_bundle/lung_nodule_ct_detection
 data_list_file_path: ${paths.meta}/monai_datalist_det.json
 dataset_dir: ${paths.processed}/luna16
 spacing_xyz: [0.703125, 0.703125, 1.25]

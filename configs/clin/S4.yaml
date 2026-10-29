@@ -1,2 +1,4 @@
 # D2 slot；与 S5 相同模块与适配协议
 defaults: [base.yaml]
+slots:
+  extractor: /home/tanyuejun/LeCen/runs/D2_clinical/current  # S4 使用 D2；临床材料就绪后由队列生成

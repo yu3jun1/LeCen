@@ -15,11 +15,13 @@ import numpy as np
 import pandas as pd
 from omegaconf import OmegaConf
 
-from common.io import ROOT, world_list, write_csv, write_json
+from common.io import ROOT, load_config, world_list, write_csv, write_json
 
 FP_POINTS = [0.125, 0.25, 0.5, 1, 2, 4, 8]
 SIZE_BINS = {"3to6": (3, 6), "6to10": (6, 10), "10plus": (10, np.inf)}
-OFFICIAL = ROOT / "eval" / "luna16_official" / "noduleCADEvaluationLUNA16.py"
+# Existing run snapshots may predate this path field; use the local data config
+# as their default, while allowing a run to pin its own evaluation script.
+OFFICIAL = Path(load_config(ROOT / "configs" / "data.yaml").paths.luna16_evaluation_script)
 XYZ = ["coordX", "coordY", "coordZ"]
 
 
@@ -85,11 +87,14 @@ def bootstrap(records, patients, fn, n, seed=0):
 
 def official(cfg, preds_csv, sids, out_dir):
     """调用官方评测脚本；读取其写出的 froc_<name>.txt（fps, sens, threshold）计算 CPM。"""
+    script = Path(cfg.paths.get("luna16_evaluation_script", str(OFFICIAL))).resolve()
+    if not script.is_file():
+        raise FileNotFoundError(f"LUNA16 官方评测脚本不存在：{script}；请配置 paths.luna16_evaluation_script")
     out_dir.mkdir(parents=True, exist_ok=True)
     sid_csv = out_dir / "seriesuids.csv"
     sid_csv.write_text("\n".join(sids) + "\n")
-    subprocess.run([sys.executable, str(OFFICIAL), cfg.paths.luna16_annotations, cfg.paths.luna16_excluded,
-                    str(sid_csv), str(preds_csv), str(out_dir) + "/"], check=True, cwd=OFFICIAL.parent)
+    subprocess.run([sys.executable, str(script), cfg.paths.luna16_annotations, cfg.paths.luna16_excluded,
+                    str(sid_csv), str(preds_csv), str(out_dir) + "/"], check=True, cwd=script.parent)
     curve = np.loadtxt(out_dir / f"froc_{Path(preds_csv).stem}.txt", delimiter=",")
     pts = np.interp(FP_POINTS, curve[:, 0], curve[:, 1])
     return {"cpm": float(pts.mean()), **{f"sens@{f:g}": float(s) for f, s in zip(FP_POINTS, pts)}}

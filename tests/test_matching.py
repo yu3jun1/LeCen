@@ -4,6 +4,7 @@ from omegaconf import OmegaConf
 
 from losses.det_loss import layer_loss
 from losses.matching import hungarian_match
+from common.boxes import size_from_log
 from models.det_head import DetHead
 from models.heatmap_head import HeatmapHead
 
@@ -61,3 +62,12 @@ def test_extreme_outputs_keep_cost_finite():
     assert len(row) == 3
     torch.nn.init.constant_(head.box[-1].bias, -200.0)
     assert (head(torch.randn(1, 8, 16), ref_c, ref_s, PATCH)[1][0, :, 3:] == 1).all()
+
+
+def test_size_bounds_preserve_in_range_gradients_and_do_not_mask_nan():
+    log_size = torch.tensor([[-1000., torch.log(torch.tensor(8.)).item(), 1000.]], requires_grad=True)
+    size = size_from_log(log_size, PATCH)
+    torch.testing.assert_close(size, torch.tensor([[1., 8., 384.]]))
+    size.sum().backward()
+    torch.testing.assert_close(log_size.grad, torch.tensor([[0., 8., 0.]]))
+    assert torch.isnan(size_from_log(torch.full((1, 3), float("nan")), PATCH)).all()
