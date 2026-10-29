@@ -12,6 +12,11 @@ def file_sha1(path):
     return h.hexdigest()
 
 
+def files_sha1(paths):
+    """按顺序组合多个文件的 sha1。"""
+    return hashlib.sha1("|".join(file_sha1(p) for p in paths).encode()).hexdigest()
+
+
 def config_hash(cfg):
     return hashlib.sha1(OmegaConf.to_yaml(cfg, resolve=True, sort_keys=True).encode()).hexdigest()
 

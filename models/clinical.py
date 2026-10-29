@@ -1,11 +1,12 @@
 """临床模块：f（逐病灶更新）、g（聚合后更新）、门控注意力池化、e(a)、e(c)、SurvivalHead。
 
-S5 / S4：r = pool([h_i + f(h_i, pool_g, e(a), e(c))])
-S2：     r0 = pool([h_i])；r = r0 + g(r0, pool_g, e(a), e(c))（g 与 f 同构）
+g_global 为所有影像配置共用的 G0 全局向量（CT-CLIP token 均值，d_g = 512），h_i 为病灶 slot（d_h = 256）。
+S5 / S4：r = pool([h_i + f(h_i, g_global, e(a), e(c))])
+S2：     r0 = pool([h_i])；r = r0 + g(r0, g_global, e(a), e(c))（g 与 f 同构）
 所有配置空集合时 r = 0、empty = 1（S2 的 g 不作用于空集合，与 S5 一致）。
 S3：     S5 去掉所有治疗输入（f 与 head 都不输入 e(a)）
-S1：     logits = head([pool_g; c; e(a)])
-其余：   logits = head([r; m; pool_g; c; e(a)])，m 为空集合指示
+S1（G0）：logits = head([g_global; c; e(a)])，不使用检测器与 slot
+其余：   logits = head([r; m; g_global; c; e(a)])，m 为空集合指示
 """
 import torch
 import torch.nn as nn
@@ -29,23 +30,25 @@ class GatedAttnPool(nn.Module):
 
 
 class ClinicalModel(nn.Module):
-    def __init__(self, m, dim, n_clin, n_treat, n_t):
+    def __init__(self, m, global_dim, slot_dim, n_clin, n_treat, n_t):
+        """slot_dim 只在 m.slots 时使用。"""
         super().__init__()
         self.m = m
         ea = m.ea_dim if m.treatment else 0
         self.ea = nn.Embedding(n_treat, m.ea_dim) if m.treatment else None
+        head_in = global_dim + n_clin + ea
         if m.slots:
             self.ec = nn.Linear(n_clin, m.ec_dim)
-            self.update = mlp(2 * dim + ea + m.ec_dim, m.f_hidden, dim, m.dropout)  # f 或 g
-            self.pool = GatedAttnPool(dim)
-        head_in = (2 * dim + 1 if m.slots else dim) + n_clin + ea
+            self.update = mlp(slot_dim + global_dim + ea + m.ec_dim, m.f_hidden, slot_dim, m.dropout)  # f 或 g
+            self.pool = GatedAttnPool(slot_dim)
+            head_in += slot_dim + 1
         self.head = mlp(head_in, m.head_hidden, n_t, m.dropout)
 
     def forward(self, b):
         ea = [self.ea(b["a"])] if self.ea is not None else []
-        parts = [b["pool_g"], b["c"], *ea]
+        parts = [b["g_global"], b["c"], *ea]
         if self.m.slots:
-            cond = torch.cat([b["pool_g"], *ea, self.ec(b["c"])], -1)
+            cond = torch.cat([b["g_global"], *ea, self.ec(b["c"])], -1)
             h, mask = b["h"], b["mask"]
             if self.m.update == "f":
                 r = self.pool(h + self.update(torch.cat([h, cond[:, None].expand(-1, h.shape[1], -1)], -1)), mask)

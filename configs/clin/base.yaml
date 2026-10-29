@@ -3,6 +3,7 @@ slots:
   extractor: /home/tanyuejun/LeCen/runs/D1_clinical/current  # 临床材料就绪后由队列生成，须包含 slots.json
   k_max: 16
   cover_margin_mm: 5
+# 所有影像配置共用 G0 全局向量 g_global（CT-CLIP 缓存 token 均值，512 维）；slot 来自 slots.extractor（256 维）
 model: {type: neural, slots: true, update: f, treatment: true,
         f_hidden: 256, head_hidden: 128, dropout: 0.2, ea_dim: 16, ec_dim: 32}
 surv: {n_t: 10, t_star_days: 730, ipcw_quantile: 0.8, ibs_points: 50}

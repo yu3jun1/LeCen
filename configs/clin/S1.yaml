@@ -1,3 +1,5 @@
-# 只用 D1 提取器的 pool_g；SurvivalHead 输入 [pool_g; c; e(a)]
+# G0：整幅 CT 编码基线。只用 CT-CLIP 缓存 token 的均值 g_global，不使用检测器、slot 与 GlobalAdapter；
+# SurvivalHead 输入 [g_global; c; e(a)]。与 S5 共用划分、临床变量、治疗、生存损失与早停。
 defaults: [base.yaml]
 model: {slots: false}
+slots: {extractor: null}

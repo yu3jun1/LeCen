@@ -1,7 +1,7 @@
 """在临床 CT 上提取并缓存 slot，并确定病灶选择。
 
 每位患者：全胸推理 → NMS 后 p > p_min 的候选 → cache/slots/<extractor_hash>/<patient_id>.npz：
-h (K×256)、p (K)、box_world (K×6)、pool_g (256，G 在 token 上的平均)、raw_count 与元数据
+h (K×256)、p (K)、box_world (K×6)、raw_count 与元数据
 （含输入 series_uid、预处理 CT 与 CT-CLIP token 文件的 sha1）。已有同名缓存而元数据不一致时拒绝写入。
 选择：在临床验证集上，以主肿瘤覆盖率（被选 slot 中心落入肿瘤包围框外扩 cover_margin_mm）为目标，
 取能达到最大覆盖率的最小 K（≤ k_max），再取该 K 下仍达到最大覆盖率的最大 p 阈值；测试集沿用。
@@ -15,18 +15,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import torch
 from omegaconf import OmegaConf
 
 from common.hashing import extractor_hash, file_sha1, sel_hash
 from common.io import ROOT, load_config, read_json, read_npz, world_list, write_csv, write_json, write_npz
 from data.infer_dataset import InferCase
 from engine.infer_det import infer_case, load_detector
-
-
-@torch.no_grad()
-def pool_g(model, case, dev):
-    return model.adapter(case.tokens[None].to(dev), case.token_xyz[None].to(dev))[0].mean(0).float().cpu().numpy()
 
 
 def extract(run, dev):
@@ -50,7 +44,7 @@ def extract(run, dev):
         case = InferCase(r.patient_id, vol_dir, token_dir, cfg.patch_zyx, cfg.infer.overlap)
         st = infer_case(model, cfg, case, dev)
         k = st["keep"][st["dec_p"][st["keep"]] > p_min]
-        write_npz(path, h=st["dec_h"][k], p=st["dec_p"][k], box_world=st["dec_box"][k], pool_g=pool_g(model, case, dev),
+        write_npz(path, h=st["dec_h"][k], p=st["dec_p"][k], box_world=st["dec_box"][k],
                   raw_count=np.array(len(k)), **{k_: np.array(v) for k_, v in meta.items()})
     return cfg, ehash, out_dir
 

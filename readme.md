@@ -33,7 +33,7 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 | `ctclip.token_layer` | `""`，使用 encoder 本身，与现有 12³ token 缓存一致 |
 | `configs/det/base.yaml: init_ckpt` | `/data/tanyuejun/_shared/checkpoints/LeCen/init.pt`，D1/D2 共用 |
 | `configs/det/D0a_monai.yaml: bundle_root` | `/data/tanyuejun/_shared/weights/monai_bundle/lung_nodule_ct_detection` |
-| `configs/clin/*.yaml: slots.extractor` | S1/S2/S3/S5：`/home/tanyuejun/LeCen/runs/D1_clinical/current`；S4：`D2_clinical/current`；由临床队列后续生成 |
+| `configs/clin/*.yaml: slots.extractor` | S2/S3/S5：`/home/tanyuejun/LeCen/runs/D1_clinical/current`；S4：`D2_clinical/current`；由临床队列后续生成。S0、S1 为 `null`，不使用检测器 |
 
 预处理版本为 `lecen_pp_v1_ctclip_v2_mean12_20261028`，LUNA16 外扩为 10 mm，均与现有缓存一致。
 `~/.pylidcrc` 已指向 `/data/tanyuejun/LIDC-IDRI/dicom`。
@@ -80,6 +80,20 @@ python -m engine.train_surv --cfg configs/clin/S5.yaml
 python -m eval.surv_eval --run runs/S5/current --final
 python -m eval.compare --a runs/S5/current --b runs/S2/current --metrics cindex_ipcw --bootstrap 2000
 ```
+
+## 生存配置
+
+所有影像配置共用同一个全局向量 G0：缓存的 12×12×12 CT-CLIP token 在空间维度上的均值（512 维，按训练集标准化），
+与检测器无关；它是 token 均值池化表示，不是 CT-CLIP 官方的图像级 latent。病灶 slot 为 256 维。
+
+| 配置 | 输入 | 主要比较 |
+|---|---|---|
+| S0 | Cox：临床变量 + 治疗 one-hot | 影像是否带来临床之外的信息 |
+| S1（G0） | `[g_global; c; e(a)]`，不使用检测器、slot 与 GlobalAdapter | 整幅 CT 编码基线 |
+| S2 | D1 slot，先聚合再用 g 更新 | S5 vs S2：条件更新的位置 |
+| S3 | S5 去掉治疗输入（仅在治疗有变化时运行） | 治疗输入是否必要 |
+| S4 | D2 slot，其余同 S5 | S5 vs S4：恢复训练对 slot 的作用 |
+| S5 | D1 slot，逐病灶更新后聚合：`[r; m; g_global; c; e(a)]` | S5 vs S1：病灶中心表征 vs 整幅 CT 编码 |
 
 ## DDP
 

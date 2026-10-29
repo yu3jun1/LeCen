@@ -16,7 +16,7 @@ from lifelines import CoxPHFitter
 
 from common.io import data_hashes, load_config, make_run, read_json, write_npz
 from common.seed import generator
-from data.clin_dataset import cohort, load_table, take
+from data.clin_dataset import cohort, global_hashes, load_table, take
 from eval.surv_eval import fixed_times
 from losses.surv_loss import fit_label_transform, interp_survival, nll_logistic_hazard, survival
 from models.clinical import ClinicalModel
@@ -38,7 +38,8 @@ def fit_neural(cfg, df, x, times, run):
     tr, va = np.flatnonzero(df.split == "train"), np.flatnonzero(df.split == "val")
     lt = fit_label_transform(cfg.surv.n_t, data["time"][tr], data["event"][tr])
     idx, ev = (torch.tensor(a) for a in lt.transform(data["time"], data["event"]))
-    model = ClinicalModel(cfg.model, data["pool_g"].shape[1], data["c"].shape[1], n_treat, len(lt.cuts))
+    slot_dim = data["h"].shape[2] if cfg.model.slots else None
+    model = ClinicalModel(cfg.model, data["g_global"].shape[1], slot_dim, data["c"].shape[1], n_treat, len(lt.cuts))
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.train.lr, weight_decay=cfg.train.wd)
     g = generator(cfg.seed)
 
@@ -81,6 +82,8 @@ def main(cfg):
     times = np.r_[t_star, ibs_times]
     hashes = data_hashes(cfg)
     if cfg.model.type != "cox":
+        hashes.update(global_hashes(cfg, df.patient_id))
+    if cfg.model.type != "cox" and cfg.model.slots:
         hashes.update(read_json(f"{cfg.slots.extractor}/slots.json"))
     run = make_run(cfg, hashes)
     predict = fit_cox(cfg, df, x, times) if cfg.model.type == "cox" else fit_neural(cfg, df, x, times, run)
