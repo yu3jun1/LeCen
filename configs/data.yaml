@@ -4,12 +4,12 @@ paths:
   luna16_annotations: /data/tanyuejun/LUNA16/meta/annotations.csv
   luna16_excluded: /data/tanyuejun/LUNA16/raw/evaluation/evaluationScript/annotations/annotations_excluded.csv
   luna16_evaluation_script: /home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py
-  clinical_meta: ???           # 合并后的临床表、划分、肿瘤框与 crops（make_splits --part clinical 写出；新目录，不覆盖已冻结的 ACRIN 元数据）
-  clinical_processed: ???      # 两个队列预处理后的 clinical/<patient_id>.nii.gz 与 clinical_targets/
+  clinical_meta: /data/tanyuejun/_shared/clinical/LeCen/lung1_external_v1_20261030/meta           # 合并后的临床表、划分、肿瘤框与 crops（make_splits --part clinical 写出；新目录，不覆盖已冻结的 ACRIN 元数据）
+  clinical_processed: /data/tanyuejun/_shared/clinical/LeCen/lung1_external_v1_20261030/processed      # 两个队列预处理后的 clinical/<patient_id>.nii.gz 与 clinical_targets/
   lungmask_checkpoint: /data/tanyuejun/_shared/weights/lungmask/unet_r231-d5d2fc3d.pth
   processed: /data/tanyuejun/LUNA16/processed/LeCen
   meta: /data/tanyuejun/LUNA16/meta/LeCen
-  cache: /data/tanyuejun/_shared/cache/LeCen
+  cache: /data/tanyuejun/_shared/cache/LeCen_lung1_external_v1_20261030  # 新协议独立缓存；LUNA tokens链接复用，旧ACRIN缓存保留
 preprocess:
   version: lecen_pp_v1_ctclip_v2_mean12_20261028
   spacing_zyx: [1.25, 0.703125, 0.703125]
@@ -42,14 +42,14 @@ clinical:
   cohorts:
     lung1:                    # NSCLC-Radiomics（MAASTRO），data/prep_lung1.py
       collection: nsclc_radiomics
-      raw: ???                # IDC 下载的 CT 与 RTSTRUCT（patient_id/study_uid/series_uid/）
-      prep: ???               # clinical.csv、series.csv、tumors.csv（GTV-1 框）
+      raw: /data/tanyuejun/NSCLC-Radiomics/dicom                # IDC 下载的 CT 与 RTSTRUCT（patient_id/study_uid/series_uid/）
+      prep: /data/tanyuejun/NSCLC-Radiomics/preparation/LeCen_lung1_external_v1_20261030  # clinical.csv、series.csv、tumors.csv（GTV-1 框）
     acrin:                    # ACRIN 6668 外部测试，data/prep_acrin.py
       collection: acrin_nsclc_fdg_pet
       raw: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom   # patient_id/study_uid/series_uid/
       frozen_meta: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/model_inputs/meta  # 已冻结的 115 例模型输入
-      prep: ???               # clinical.csv、series.csv、tumors.csv（BAMF-AIMI 框，只用于覆盖率报告）
-      bamf: ???               # IDC 下载的 BAMF-AIMI DICOM SEG
+      prep: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/LeCen_lung1_external_v1_20261030  # clinical.csv、series.csv、tumors.csv（BAMF-AIMI 框，只用于覆盖率报告）
+      bamf: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/annotations/BAMF-AIMI/dicom               # IDC 下载的 BAMF-AIMI DICOM SEG
 splits:
   det: {train: [0, 1, 2, 3, 4, 5, 6], val: [7], test: [8, 9]}
   clin: {ratios: [0.6, 0.2, 0.2], stratify: [event, treatment], seed: 2026}

@@ -82,8 +82,11 @@ def clinical_chain(paths, stages, p_min, margin_mm):
         half = box[3:] / 2 + margin_mm
         rows.append({"patient_id": pid, "crop_mode": crops.crop_mode[pid], "fallback": crops.fallback_reason[pid] != "",
                      **chain(st, kept, lambda c: (np.abs(c - box[:3]) <= half).all(-1), p_min)})
-    df = pd.DataFrame(rows)
-    summary = {"n": len(df), **df[STAGES].mean().to_dict(), "fallback_ratio": df.fallback.mean(), "truncated_ratio": 1 - df.retained.mean()}
+    df = pd.DataFrame(rows, columns=["patient_id", "crop_mode", "fallback", *STAGES])
+    stats = (df[STAGES].mean().to_dict() if len(df) else {name: None for name in STAGES})
+    summary = {"n": len(df), "n_total": len(stages), "n_annotated": len(df), "n_unannotated": len(stages) - len(df),
+               **stats, "fallback_ratio": float(df.fallback.mean()) if len(df) else None,
+               "truncated_ratio": float(1 - df.retained.mean()) if len(df) else None}
     return df, pd.DataFrame([summary])
 
 
@@ -105,6 +108,7 @@ if __name__ == "__main__":
         write_csv(run / "mech" / "recall_chain.csv", summary)
     else:
         clin = load_config(ROOT / "configs" / "clin" / "base.yaml")
+        cfg.paths.cache = clin.paths.cache  # 临床 token 使用当前缓存，不改已完成运行的保存配置。
         s = pd.read_csv(Path(clin.paths.clinical_meta) / "splits_clin.csv", dtype={"patient_id": str})
         stages = predict(model, cfg, s[s.split == args.split].patient_id, Path(clin.paths.clinical_processed) / "clinical", "cuda")
         df, summary = clinical_chain(clin.paths, stages, p_min, clin.slots.cover_margin_mm)

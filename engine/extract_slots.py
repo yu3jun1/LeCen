@@ -24,12 +24,12 @@ from engine.infer_det import infer_case, load_detector, score_threshold_mask
 
 
 def extract(run, paths, dev):
-    """paths：当前临床数据路径（configs/clin/base.yaml）；检测器与 token 缓存取自运行目录的配置。"""
+    """paths：当前临床体积、元数据与缓存路径；检测器模型与推理参数取自运行目录。"""
     cfg, model = load_detector(run, dev)
     p_min = read_json(run / "p_min.json")["p_min"]
     ehash = extractor_hash(cfg, run / "checkpoints" / "best.pt", p_min)
-    out_dir = Path(cfg.paths.cache) / "slots" / ehash
-    vol_dir, token_dir = Path(paths.clinical_processed) / "clinical", Path(cfg.paths.cache) / "ctclip"
+    out_dir = Path(paths.cache) / "slots" / ehash
+    vol_dir, token_dir = Path(paths.clinical_processed) / "clinical", Path(paths.cache) / "ctclip"
     splits = pd.read_csv(Path(paths.clinical_meta) / "splits_clin.csv", dtype={"patient_id": str})
     series = pd.read_csv(Path(paths.clinical_meta) / "clinical.csv", dtype={"patient_id": str}).set_index("patient_id").series_uid
     for r in splits.itertuples():

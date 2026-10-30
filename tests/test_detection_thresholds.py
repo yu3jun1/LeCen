@@ -125,7 +125,7 @@ def test_slots_predictions_and_clinical_chain_share_strict_threshold_mask(tmp_pa
     monkeypatch.setattr(extract_slots, 'infer_case', lambda *args: st)
     captured = {}
     monkeypatch.setattr(extract_slots, 'write_npz', lambda path, **arrays: captured.update(arrays))
-    paths = SimpleNamespace(clinical_meta=str(tmp_path/'clinical_meta'), clinical_processed=str(tmp_path/'clinical_processed'))
+    paths = SimpleNamespace(clinical_meta=str(tmp_path/'clinical_meta'), clinical_processed=str(tmp_path/'clinical_processed'), cache=str(tmp_path/'current_cache'))
     extract_slots.extract(tmp_path/'run', paths, 'cpu')
     predictions = infer_det.preds_frame({'patient': st}, threshold)
     assert np.array_equal(captured['p'], predictions.probability.to_numpy())

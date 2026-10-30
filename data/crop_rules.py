@@ -121,7 +121,7 @@ def audit(cfg):
     tumors = pd.read_csv(clin_meta / "clinical_tumors.csv", dtype={"patient_id": str})
     for r in pd.read_csv(clin_meta / "splits_clin.csv", dtype={"patient_id": str}).itertuples():
         h = read_header(Path(p.clinical_processed) / "clinical" / f"{r.patient_id}.nii.gz")
-        box = world_list(tumors[tumors.patient_id == r.patient_id].bbox_world)
+        box = world_list(tumors[tumors.patient_id == r.patient_id].bbox_world).reshape(-1, 6)
         c = world_to_vox(box[:, :3], affine_of(h))
         rows.append((r.patient_id, r.split, c, box[:, [5, 4, 3]] / 2 / spacing_zyx(h), h))
     out = []
@@ -131,7 +131,8 @@ def audit(cfg):
                     "fallback_reason": crops.fallback_reason[case], "n_targets": len(ok), "n_retained": int(ok.sum())})
     df = pd.DataFrame(out).fillna({"fallback_reason": ""})
     write_csv(meta / "crop_audit.csv", df)
-    s = df.groupby("split").agg(n_targets=("n_targets", "sum"), n_retained=("n_retained", "sum"),
+    s = df.groupby("split").agg(n_cases=("case_id", "size"), n_cases_with_targets=("n_targets", lambda x: int((x > 0).sum())),
+                                n_targets=("n_targets", "sum"), n_retained=("n_retained", "sum"),
                                 n_fallback=("fallback_reason", lambda x: (x != "").sum()))
     s["retention"] = s.n_retained / s.n_targets
     print(s.to_string())

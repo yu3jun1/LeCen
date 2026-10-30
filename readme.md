@@ -24,11 +24,11 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 | `paths.luna16_annotations` / `paths.luna16_excluded` | 已填入现有 `annotations.csv` / `annotations_excluded.csv` |
 | `paths.luna16_evaluation_script` | `/home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py` |
 | `paths.processed` / `paths.meta` | 检测：`/data/tanyuejun/LUNA16/processed/LeCen`、`/data/tanyuejun/LUNA16/meta/LeCen` |
-| `paths.clinical_meta` / `paths.clinical_processed` | 待填（`???`）：两个临床队列合并后的元数据与预处理体积，新目录，不覆盖已冻结的 ACRIN 元数据 |
-| `clinical.cohorts.lung1.raw` / `.prep` | 待填：Lung1 的 IDC 下载目录与统一格式输入目录 |
+| `paths.clinical_meta` / `paths.clinical_processed` | `/data/tanyuejun/_shared/clinical/LeCen/lung1_external_v1_20261030/meta`；`/data/tanyuejun/_shared/clinical/LeCen/lung1_external_v1_20261030/processed`；新协议独立目录，保留旧 ACRIN 冻结版本 |
+| `clinical.cohorts.lung1.raw` / `.prep` | `/data/tanyuejun/NSCLC-Radiomics/dicom`；`/data/tanyuejun/NSCLC-Radiomics/preparation/LeCen_lung1_external_v1_20261030` |
 | `clinical.cohorts.acrin.raw` / `.frozen_meta` | `/data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom`；已冻结的115例模型输入 `verified_v1_20261029/model_inputs/meta` |
-| `clinical.cohorts.acrin.prep` / `.bamf` | 待填：ACRIN 统一格式输入目录与 BAMF-AIMI DICOM SEG 下载目录 |
-| `paths.cache` | `/data/tanyuejun/_shared/cache/LeCen` |
+| `clinical.cohorts.acrin.prep` / `.bamf` | `/data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/LeCen_lung1_external_v1_20261030`；`/data/tanyuejun/ACRIN-NSCLC-FDG-PET/annotations/BAMF-AIMI/dicom` |
+| `paths.cache` | `/data/tanyuejun/_shared/cache/LeCen_lung1_external_v1_20261030`；新协议独立缓存，已有 LUNA tokens 通过链接复用 |
 | `ctclip.checkpoint` | `/data/tanyuejun/_shared/weights/ctclip/CT-CLIP_v2.pt` |
 | `ctclip.token_layer` | `""`，使用 encoder 本身，与现有 12³ token 缓存一致 |
 | `configs/det/base.yaml: init_ckpt` | `/data/tanyuejun/_shared/checkpoints/LeCen/init.pt`，D1/D2 共用 |
@@ -40,7 +40,7 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 
 ### 临床队列：Lung1 开发，ACRIN 外部测试
 
-- **开发队列 NSCLC-Radiomics（Lung1，MAASTRO，IDC `nsclc_radiomics`）**：422例不可手术NSCLC，根治性放疗或放化疗；
+- **开发队列 NSCLC-Radiomics（Lung1，MAASTRO，IDC `nsclc_radiomics`）**：422例NSCLC公开队列，主体接受根治性放疗或放化疗（官方保留的LUNG1-128是术后病例，无GTV-1）；
   OS 来自 `Survival.time` / `deadstatus.event`。按 (event, treatment) 分层 60/20/20，种子2026。
   主肿瘤框为 RTSTRUCT 中 GTV-1 的外接框（放疗科人工勾画），用于验证集覆盖率、slot 选择与临床定位适配。
   文献报告少数病例的 GTV 文件错误或与 CT 错位；`tumors_missing.csv` 记录没有 GTV-1 的病例，错位病例无法自动识别。
@@ -53,16 +53,26 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
   标准化、缺失填补、G0 标准化、生存时间分箱、t\*、τ 与删失分布都只在 Lung1 训练集上拟合，外部队列沿用。
 - ACRIN 此前以 69/23/23 划分完成的 S0/S1 正式测试属于旧设计，保留记录；新设计下 ACRIN 的结果来自 Lung1 训练的模型。
 
+本机下载依赖使用独立的 `/home/tanyuejun/LeCen_runtime/idc_venv`（idc-index 0.13.4 / IDC v25），以适配其pandas依赖；GPU预处理及训练仍使用原 `/home/tanyuejun/LeCen_runtime/venv`。
+五步准备协调器与日志位于 `/data/tanyuejun/_management/LeCen/lung1_external_20261030/`，按顺序执行并在全部数据验证后接续新协议队列。S0/S1旧设计的测试登记已备份移除，旧完整运行结果保留。
+路径、源数据核对及验证范围见[本轮准备记录](docs/reports/2026-10-30-lung1-acrin-preparation.md)。
+
+本地元数据版本为 `lung1_external_v1_20261030`，固定种子2026：Lung1为训练253例、验证85例、内部测试84例；ACRIN的115例全部为外部测试，本轮无临床资格排除。Lung1已取得422个CT与422个RTSTRUCT，共51,652个DICOM文件，421例有GTV-1框，LUNG1-128保留为无GTV标注病例。LUNG1-035的33个未解析引用仅位于RT全局索引，全部8个实际ROI引用均可用；首次审计、官方目录核对及来源限制均保留在管理目录，不修改原DICOM。
+
+ACRIN的BAMF准备记录为83例坐标系不匹配、28例无SEG、4例只有非肿瘤标签，可用框为0；115例仍全部参与外部生存测试，肿瘤覆盖率按无可用参考标注报告，不把这些病例视为无肿瘤。两个队列共537例的新临床体积、targets、crops与tokens已在上述独立版本目录中生成并核验；五步准备完成，新协议实验队列已自动接续。完成记录见管理目录的`pipeline_status.json`。
+
+临床定位适配的共同预算为`configs/det/base.yaml`中的`adapt.iters=2000`。仅按Lung1验证集的既定覆盖规则触发，D1/D2相同，不使用测试分数选择步数。
+
 ## 命令
 
 ```bash
-# 数据准备已完成；以下命令供重建时使用。临床相关命令需先完成上述核验。
+# 检测数据准备已完成；以下命令供重建时使用。临床按上述新协议准备。
 python -m data.crop_rules --cfg configs/data.yaml --fit-on train      # 确定外扩量并写回配置
 python -m data.prep_luna16 --cfg configs/data.yaml --subset 0          # 逐个子集 0…9
 python -m data.build_instances --cfg configs/data.yaml
 # python -m data.make_splits --cfg configs/data.yaml --part det    # 从零重建备用；当前检测划分不重跑
-python -m data.prep_lung1 --cfg configs/data.yaml               # Lung1：IDC 下载 CT + RTSTRUCT，写统一格式输入与 GTV-1 框
-python -m data.prep_acrin --cfg configs/data.yaml               # ACRIN：冻结的115例转统一格式；下载 BAMF SEG 并转框
+/home/tanyuejun/LeCen_runtime/idc_venv/bin/python -m data.prep_lung1 --cfg configs/data.yaml  # Lung1：CT + RTSTRUCT 与 GTV-1 框
+/home/tanyuejun/LeCen_runtime/idc_venv/bin/python -m data.prep_acrin --cfg configs/data.yaml  # ACRIN：冻结115例与 BAMF 框
 python -m data.make_splits --cfg configs/data.yaml --part clinical   # 合并队列：Lung1 划分，ACRIN = external
 python -m data.prep_clinical --cfg configs/data.yaml --cohort lung1  # CT-CLIP token、肺裁剪、clinical_targets
 python -m data.prep_clinical --cfg configs/data.yaml --cohort acrin
@@ -104,7 +114,7 @@ python -m eval.compare --a ${S5_RUN} --b ${S1_RUN} --metrics cindex_ipcw --boots
 
 每个实验使用 `runs/<实验名>/<时间戳>/`，不建立 `current` 目录或别名；实际路径和状态登记在 `runs/index.json`。
 异常结束且已废弃的旧运行已从 runs 清除，故障复现所需的日志、配置、源码和少量现场权重单独保存在 `/data/tanyuejun/_management/LeCen/runs_cleanup_20261029/`。
-正在进行的 D1/D2 保留，完成的 D0a/S0/S1 保留。D0a 以最后完整运行 `20261029-055704-resume-e134` 为准，共200epoch，验证集选中的 `checkpoints/model.pt` 为epoch165；`last_training.pt` 为epoch200状态。
+已完成的 D0a/D1/D2 及旧设计的 S0/S1 保留，新临床协议使用新的实际运行目录。D0a 以最后完整运行 `20261029-055704-resume-e134` 为准，共200epoch，验证集选中的 `checkpoints/model.pt` 为epoch165；`last_training.pt` 为epoch200状态。
 
 自动队列每180秒检查数据与依赖，准备就绪后并行接续；只使用GPU1–7，优先2–7，GPU0禁用。
 D1/D2完成后先分析训练更新、验证曲线及定位信息丢失链，再判断是否需要修复或延长训练。需要重训时由本会话自动接续；共同逻辑改动保持共享初始化及比较协议。

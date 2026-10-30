@@ -65,3 +65,81 @@ def test_gtv_box(tmp_path, monkeypatch):
     assert prep_lung1.gtv_box("other", tmp_path, "ct-uid") is None
     with pytest.raises(ValueError):
         prep_lung1.gtv_box("wrong", tmp_path, "ct-uid")
+
+
+def test_lung_only_seg_has_no_tumor_label_without_pixel_decode(monkeypatch):
+    class LungOnly:
+        FrameOfReferenceUID = "for-1"
+        SegmentSequence = [NS(SegmentLabel="Lung", SegmentNumber=1)]
+
+        @property
+        def pixel_array(self):
+            raise AssertionError("A lung-only SEG must not decode tumor pixels")
+
+    monkeypatch.setattr(prep_acrin.pydicom, "dcmread", lambda path: LungOnly())
+    assert prep_acrin.seg_boxes("lung.dcm") == ("for-1", [])
+    assert prep_acrin.seg_boxes("lung.dcm", with_reason=True) == ("for-1", [], "no_tumor_label")
+
+
+def test_empty_tumor_label_is_distinct_from_missing_label(monkeypatch):
+    empty = seg_dataset()
+    empty.pixel_array[:] = 0
+    monkeypatch.setattr(prep_acrin.pydicom, "dcmread", lambda path: empty)
+    assert prep_acrin.seg_boxes("empty.dcm", with_reason=True) == ("for-1", [], "empty_tumor_segment")
+
+
+def test_acrin_prep_missing_labels_and_frame_identity(tmp_path, monkeypatch):
+    """Real tumor geometry survives; absent SEG, lung-only, and wrong FoR stay distinct."""
+    import json
+    import sys
+    import pandas as pd
+
+    frozen_dir, prep_dir, bamf = [tmp_path / name for name in ("frozen", "prep", "bamf")]
+    frozen_dir.mkdir()
+    frozen = pd.DataFrame({"patient_id": ["none", "lung", "wrong", "tumor"],
+                           "series_uid": ["ct-none", "ct-lung", "ct-wrong", "ct-tumor"],
+                           "time_days": [10, 20, 30, 40], "event": [0, 1, 0, 1],
+                           "age": [50, 51, 52, 53], "sex_male": [0, 1, 0, 1]})
+    for name in ("IIIA", "IIIB", "Other"):
+        frozen[f"baseline_stage_{name}"] = 0
+        frozen[f"baseline_stage_{name}_missing"] = 0
+    frozen.to_csv(frozen_dir / "clinical.csv", index=False)
+    segs = pd.DataFrame({"PatientID": ["lung", "wrong", "tumor", "tumor"],
+                         "SeriesInstanceUID": ["seg-lung", "seg-wrong", "seg-tumor", "seg-tumor-lung"],
+                         "SeriesDescription": ["AI segmentation", "AI segmentation", "AI segmentation", "radiologist corrected segmentation"],
+                         "collection_id": "acrin_nsclc_fdg_pet", "analysis_result_id": prep_acrin.ANALYSIS})
+    for uid in segs.SeriesInstanceUID:
+        path = bamf / uid
+        path.mkdir(parents=True)
+        (path / "seg.dcm").touch()
+    lung = NS(FrameOfReferenceUID="for-1", SegmentSequence=[NS(SegmentLabel="Lung", SegmentNumber=1)])
+    wrong = seg_dataset();wrong.FrameOfReferenceUID = "another-for"
+    datasets = {"seg-lung": lung, "seg-wrong": wrong, "seg-tumor": seg_dataset(), "seg-tumor-lung": lung}
+    monkeypatch.setattr(prep_acrin.pydicom, "dcmread", lambda path: datasets[path.parent.name])
+    monkeypatch.setattr(prep_acrin, "ct_frame_of_reference", lambda raw, uid: "for-1")
+    fake = NS(index=segs, download_from_selection=lambda **kwargs: None)
+    monkeypatch.setitem(sys.modules, "idc_index", NS(IDCClient=lambda: fake))
+    cfg = NS(clinical=NS(cohorts=NS(acrin=NS(prep=prep_dir, bamf=bamf,
+        frozen_meta=frozen_dir, raw=tmp_path / "raw", collection="acrin_nsclc_fdg_pet"))))
+    prep_acrin.main(cfg)
+
+    clinical = pd.read_csv(prep_dir / "clinical.csv")
+    series = pd.read_csv(prep_dir / "series.csv")
+    assert clinical.patient_id.tolist() == frozen.patient_id.tolist()
+    assert clinical.time_days.tolist() == frozen.time_days.tolist()
+    assert clinical.event.tolist() == frozen.event.tolist()
+    assert series.series_uid.tolist() == frozen.series_uid.tolist()
+    missing = pd.read_csv(prep_dir / "tumors_unmatched.csv").set_index("patient_id")
+    assert missing.reason.to_dict() == {"none": "no_seg", "lung": "no_tumor_label", "wrong": "frame_of_reference_differs"}
+    assert json.loads(missing.loc["lung", "seg_uids"]) == ["seg-lung"]
+    audit = pd.read_csv(prep_dir / "tumor_seg_audit.csv").set_index("seg_uid")
+    assert audit.loc["seg-tumor-lung", "status"] == "no_tumor_label"
+    assert audit.loc["seg-tumor", "status"] == "selected"
+    assert audit.loc["seg-wrong", "status"] == "frame_of_reference_differs"
+    assert not audit.loc["seg-wrong", "frame_of_reference_matches"]
+    tumors = pd.read_csv(prep_dir / "tumors.csv")
+    assert len(tumors) == 2 and set(tumors.patient_id) == {"tumor"}
+    assert set(tumors.seg_uid) == {"seg-tumor"} and set(tumors.source) == {"ai"}
+    boxes = [np.fromstring(value, sep=" ") for value in tumors.bbox_world]
+    assert any(np.allclose(box, [104.5, 210.0, -37.5, 6.0, 6.0, 10.0]) for box in boxes)
+    assert any(np.allclose(box, [130.0, 200.0, -20.0, 3.0, 2.0, 5.0]) for box in boxes)

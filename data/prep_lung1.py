@@ -29,7 +29,7 @@ def download(client, collection, raw):
     sel = idx[(idx.collection_id == collection) & idx.Modality.isin(["CT", "RTSTRUCT"])]
     print(f"{collection}: {len(sel)} 序列 {sel.series_size_MB.sum():.0f} MB")
     client.download_from_selection(downloadDir=raw, seriesInstanceUID=list(sel.SeriesInstanceUID),
-                                   dirTemplate="%PatientID/%StudyInstanceUID/%SeriesInstanceUID")
+                                   dirTemplate="%PatientID/%StudyInstanceUID/%SeriesInstanceUID", use_s5cmd_sync=True)
     return sel
 
 
@@ -40,9 +40,11 @@ def one_series(sel, modality):
     return s.set_index("PatientID").SeriesInstanceUID
 
 
-def clinical_table(client):
+def clinical_table(client, source_path=None):
     client.fetch_index("clinical_index")
     t = client.get_clinical_table("nsclc_radiomics_clinical")
+    if source_path is not None:
+        write_csv(source_path, t)
     return pd.DataFrame({"patient_id": t.patientid, "time_days": t.survivaltime.astype(float), "event": t.deadstatusevent,
                          "treatment": TREATMENT, "age": pd.to_numeric(t.age, errors="coerce"),
                          "sex_male": (t.gender == "male").astype(float), "stage": t.overallstage.map(STAGE)})
@@ -72,8 +74,9 @@ def main(cfg):
     prep = Path(c.prep)
     client = IDCClient()
     sel = download(client, c.collection, c.raw)
+    write_csv(prep / "idc_download_selection.csv", sel)
     ct, rt = one_series(sel, "CT"), one_series(sel, "RTSTRUCT")
-    write_csv(prep / "clinical.csv", clinical_table(client))
+    write_csv(prep / "clinical.csv", clinical_table(client, prep / "idc_clinical_source.csv"))
     write_csv(prep / "series.csv", pd.DataFrame({"patient_id": ct.index, "series_uid": ct.to_numpy()}))
     tumors, missing = [], []
     for pid, ct_uid in ct.items():

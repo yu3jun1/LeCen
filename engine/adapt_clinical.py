@@ -30,6 +30,10 @@ def main(src, overrides):
     set_determinism()
     dev = setup()
     cfg = OmegaConf.merge(OmegaConf.load(src / "config.yaml"), OmegaConf.from_dotlist(overrides))
+    paths = load_config(ROOT / "configs" / "data.yaml").paths
+    # Keep pinned LUNA meta/processed paths; the current cache also exposes LUNA tokens.
+    for key in ("clinical_meta", "clinical_processed", "cache"):
+        cfg.paths[key] = paths[key]
     cfg.name, cfg.train.iters = f"{cfg.name}_adapt", cfg.adapt.iters
     ckpt = torch.load(src / "checkpoints" / "best.pt", map_location="cpu")
     run = make_run(cfg, {"source_run": str(src), "source_ckpt": file_sha1(src / "checkpoints" / "best.pt"),
@@ -47,7 +51,6 @@ def main(src, overrides):
     ddp = wrap(step_fn, dev)
     params = list(step_fn.parameters())
     optimizer, scheduler = build_optim(cfg, model, list(recovery.parameters()) if recovery else [])
-    paths = load_config(ROOT / "configs" / "data.yaml").paths  # 当前临床数据路径，不取源运行目录中的配置
     p = Path(paths.clinical_processed)
     splits = pd.read_csv(Path(paths.clinical_meta) / "splits_clin.csv", dtype={"patient_id": str})
     clin = DetPatchDataset(cfg, splits[splits.split == "train"].patient_id, p / "clinical", None, p / "clinical_targets", True)

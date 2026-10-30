@@ -107,7 +107,7 @@ def main(cfg, cohort_name):
     series = clin[clin.cohort == cohort_name][["patient_id", "series_uid"]]
     tumors = pd.read_csv(meta / "clinical_tumors.csv", dtype={"patient_id": str})
     raw = cfg.clinical.cohorts[cohort_name].raw
-    encoder, lm = load_encoder(cfg.ctclip.checkpoint), LMInferer()
+    encoder, lm = load_encoder(cfg.ctclip.checkpoint), LMInferer(modelpath=cfg.paths.lungmask_checkpoint)
     crops = []
     for r in series.itertuples():
         img = read_series(series_directory(raw, r.series_uid))

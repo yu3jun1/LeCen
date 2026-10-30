@@ -24,7 +24,7 @@ optim: {type: adamw, lr_decoder: 2.0e-4, lr_backbone: 1.0e-4, wd: 1.0e-4,
 train: {batch: 4, accum_steps: 1, iters: 30000, amp: true, val_every: 2000, workers: 4}   # BF16 不使用动态梯度缩放；batch 为全局 batch
 infer: {overlap: 0.25, p_min: 0.05, nms: center_distance, nms_radius_scale: 0.5}
 adapt:
-  iters: ???                # 临床定位适配步数，仅在覆盖不足时使用
+  iters: 2000               # 本轮共同预算：仅按 Lung1 验证覆盖触发，D1/D2相同，不用测试集选择
 seeds: {init: 1000, recovery_init: 1001, data: 2000}
 init_ckpt: /data/tanyuejun/_shared/checkpoints/LeCen/init.pt
 ddp: {zero_loss_for_unused: true}
