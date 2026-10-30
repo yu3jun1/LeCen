@@ -137,3 +137,16 @@ def test_slots_predictions_and_clinical_chain_share_strict_threshold_mask(tmp_pa
     monkeypatch.setattr(recall_chain, 'retained', lambda *args: True)
     rows, summary = recall_chain.clinical_chain(paths, {'patient': st}, threshold, margin_mm=0)
     assert bool(rows.work.iloc[0]) == include_ties
+
+
+def test_window_cores_partition_each_axis():
+    """每个位置恰好属于一个窗口的中心区域，且是中心离它最近的窗口（含末尾不等距窗口）。"""
+    from data.infer_dataset import core, starts
+
+    for n, w in ((80, 80), (300, 192), (517, 192), (161, 80)):
+        s = starts(n, w, 0.25)
+        bounds = core(s, w)
+        for u in np.arange(-0.5, n - 0.5, 0.25):
+            owners = [a for a, (lo, hi) in bounds.items() if lo <= u < hi]
+            assert len(owners) == 1
+            assert owners[0] == min(s, key=lambda a: (abs(a + (w - 1) / 2 - u), -a))  # 中点归后一个窗口

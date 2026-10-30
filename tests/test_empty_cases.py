@@ -9,7 +9,7 @@ from models.recovery import RecoveryDecoder
 
 PATCH = torch.tensor([80.0, 192.0, 192.0])
 CFG = OmegaConf.create({"loss": {"exist_focal": {"alpha": 0.25, "gamma": 2.0}, "w": {"exist": 2.0, "l1": 5.0, "giou": 2.0}},
-                        "model": {"recovery": {"out_size": 32, "crop_scale": 1.5, "dilate_vox": 2}}})
+                        "model": {"recovery": {"out_size": 32, "crop_mm": 32, "dilate_vox": 2}}})
 
 
 class Counting(RecoveryDecoder):
@@ -30,7 +30,7 @@ def out_and_batch(gt, has_mask, valid_all=True):
     labels[0, 18:22, 48:52, 58:62] = 1
     batch = {"boxes": [gt], "ignore": [torch.zeros(0, 6)], "has_mask": [torch.tensor(has_mask, dtype=torch.bool)],
              "label_value": [torch.ones(len(gt), dtype=torch.long)], "image": torch.rand(1, 1, 80, 192, 192),
-             "labels": labels, "valid_mask": valid}
+             "labels": labels, "valid_mask": valid, "spacing": torch.tensor([[1.25, 0.703125, 0.703125]])}
     match = [(torch.arange(len(gt)), torch.arange(len(gt)))]
     return out, batch, match
 

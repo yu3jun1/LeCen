@@ -89,7 +89,8 @@ python -m engine.infer_det --run runs/D1/20261029-122606 --split val          # 
 python -m engine.infer_det --run runs/D1/20261029-122606 --split test --final
 python -m eval.froc --run runs/D1/20261029-122606 --split test
 python -m eval.compare --a runs/D1/20261029-122606 --b runs/D2/20261029-120947 --metrics cpm,sens1fp_3to6 --bootstrap 2000
-python -m eval.shuffle_h --run runs/D1/20261029-122606
+python -m eval.shuffle_h --run runs/D1/<新 run_id>                 # 旧 D1 运行没有 recovery.crop_mm，不能用新目标评估
+python -m eval.window_core --run runs/D1/20261029-122606         # 验证集：关闭 / 开启 window_core 对照，不改 p_min 与 preds
 python -m eval.recall_chain --run runs/D1/20261029-122606 --split val
 # D0a 当前目录为 runs/D0a/20261029-055704-resume-e134；MONAI 训练与推理由外部运行器和自动队列接续。
 # 推理产物生成后，可手动转换 MONAI 输出（正式测试只登记一次）：
@@ -163,6 +164,19 @@ D1 的恢复梯度检查使用未缩放的实际梯度。检测头已经输出 F
 `pycox==0.3.0` 已安装在本机运行环境中，核心 PyTorch/NumPy/Pandas 版本保持不变。
 跳步审计、精简方案及验证见 [AMP 缩放故障报告](docs/reports/2026-10-29-amp-scale-underflow.md)。
 早期热图 FP16 失败证据保留在 [历史热图报告](docs/reports/2026-10-29-heatmap-overflow-fix.md)。
+
+### D1 / D2 首轮结果后的两项修改
+
+- **滑窗中心区域（`infer.window_core: true`）**：每个位置只保留中心离它最近的窗口的预测（相邻窗口中心的中点为界），
+  热图候选与 decoder 输出都如此过滤。此前同一位置最多被 8 个重叠窗口预测，NMS 取最高分，FP 有多次机会获得高分，
+  窗口边缘、上下文不完整的预测也参与排名。`eval.window_core` 在验证集上对同一权重比较关闭与开启，结果只写入 `mech/`。
+- **Recovery 目标改为固定物理尺寸（`model.recovery.crop_mm: 32`）**：以 GT 中心裁剪 32 mm 立方体，重采样为 32³（1 mm 体素）。
+  原目标按 GT 框 × 1.5 缩放，每个病灶都是居中、占比固定的团块，平均模板即可重建（首轮 shuffle-h：Dice 0.760 vs 0.748），
+  小结节只剩几个体素插值放大。新目标保留病灶大小、形状与周围组织，必须由 h 编码。
+- **shuffle-h 增加模板基线**：所有病灶目标的逐体素平均（在评估集上取得，偏向模板）。true 需同时明显优于 shuffled 与 template。
+- 信息丢失链另记各阶段的独立命中（`only_dec` 等），区分"热图候选落点偏离但 decoder 仍找到结节"与真正的漏检。
+- 首轮 D1 / D2 的运行配置没有这两个字段：只能用 `eval.window_core` 做推理对照；其余推理、slot 提取和 shuffle-h 需要新运行。
+  两项修改都影响训练期验证选权重，D1 与 D2 应从同一份共享初始化、以相同设置一起重训，比较协议不变。
 
 可选 `train.failure_dir` 用于前向、反向及更新前检查失败的现场保存。
 普通 `best.pt` / `last.pt` 仍只保存模型、recovery 和 step，不能用作完整状态续训。

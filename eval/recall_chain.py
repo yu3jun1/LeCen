@@ -1,5 +1,7 @@
 """信息丢失链：对每个参考结节依次判断（逐级累积）
 预处理后保留 → 热图 top-N 候选覆盖（候选中心在结节半径内）→ decoder 输出命中 → NMS 后命中 → 工作点命中，按尺寸分层汇总。
+同时记录各阶段不要求前一阶段命中的独立命中（only_*）：decoder 可以把半径外的候选移到结节上，
+only_dec 高于 dec 说明热图候选落点偏离、但 decoder 仍找到了结节。
 工作点为该划分上 1 FP/scan 的概率阈值。保留与 crop_audit.csv 使用同一判定，只作审计。
 临床队列对主肿瘤（框体积最大者）做同样统计，命中为中心落入肿瘤框外扩 cover_margin_mm，工作点为 p > p_min；
 并记录回退与被截断患者比例。外部测试队列（--split external）的肿瘤框来自 BAMF-AIMI 分割，只作报告。
@@ -21,6 +23,7 @@ from engine.infer_det import load_detector, predict, preds_frame, score_threshol
 from eval.froc import SIZE_BINS, froc, scan_records
 
 STAGES = ["retained", "hm", "dec", "nms", "work"]
+ONLY = [f"only_{s}" for s in STAGES[2:]]
 
 
 def chain(stage, kept, hit, t_work, *, inclusive=False):
@@ -29,7 +32,7 @@ def chain(stage, kept, hit, t_work, *, inclusive=False):
     k = stage["keep"]
     work = score_threshold_mask(stage["dec_p"][k], t_work, inclusive=inclusive)
     raw = [kept, hit(stage["hm_xyz"]).any(), dec.any(), dec[k].any(), (dec[k] & work).any()]
-    return dict(zip(STAGES, np.cumprod(raw).astype(bool)))
+    return {**dict(zip(STAGES, np.cumprod(raw).astype(bool))), **dict(zip(ONLY, map(bool, raw[2:])))}
 
 
 def work_threshold(records, target_fp=1.0):
@@ -53,10 +56,10 @@ def luna_chain(cfg, stages, records):
 
 
 def summarize(df):
-    out = [{"group": "all", "n": len(df), **df[STAGES].mean().to_dict()}]
+    out = [{"group": "all", "n": len(df), **df[STAGES + ONLY].mean().to_dict()}]
     for name, (lo, hi) in SIZE_BINS.items():
         g = df[(df.diameter_mm >= lo) & (df.diameter_mm < hi)]
-        out.append({"group": name, "n": len(g), **g[STAGES].mean().to_dict()})
+        out.append({"group": name, "n": len(g), **g[STAGES + ONLY].mean().to_dict()})
     return pd.DataFrame(out)
 
 

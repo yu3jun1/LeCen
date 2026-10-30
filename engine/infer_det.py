@@ -29,9 +29,16 @@ from models.detector import Detector
 
 @torch.no_grad()
 def infer_case(model, cfg, case, dev):
-    """返回各阶段输出（世界坐标）：hm_xyz 热图候选中心；dec_* 最终层 query（中心在体积内）；keep 为 NMS 保留的 dec 下标。"""
+    """返回各阶段输出（世界坐标）：hm_xyz 热图候选中心；dec_* 最终层 query（中心在体积内）；keep 为 NMS 保留的 dec 下标。
+    infer.window_core 时，热图候选与 decoder 输出只保留中心落在所在窗口中心区域内的部分（每个位置只由一个窗口预测）。"""
     patch = torch.tensor(list(cfg.patch_zyx), dtype=torch.float32, device=dev)
     shape = torch.tensor(case.shape, dtype=torch.float32, device=dev)
+
+    def kept(vol, b):
+        k = ((vol >= -0.5) & (vol <= shape - 0.5)).all(-1)
+        if cfg.infer.window_core:
+            k &= ((vol >= b["core_lo"][:, None]) & (vol < b["core_hi"][:, None])).all(-1)
+        return k
     hm_xyz, boxes, ps, hs = [], [], [], []
     for i in range(0, len(case.starts), cfg.train.batch):
         b = to_device(case.batch(case.starts[i:i + cfg.train.batch]), dev)
@@ -40,12 +47,12 @@ def infer_case(model, cfg, case, dev):
         last = out["layers"][-1]
         off, flip = b["offset_vox"][:, None], b["flip"][:, None]
         vol_c = patch_to_vol(last["box"][..., :3], off, flip, patch)
-        keep = ((vol_c >= -0.5) & (vol_c <= shape - 0.5)).all(-1)
+        keep = kept(vol_c, b)
         boxes.append(patch_box_to_world(last["box"], off, flip, patch, b["affine"], b["spacing"][:, None])[keep])
         ps.append(last["exist_logit"].sigmoid()[keep])
         hs.append(last["h"].float()[keep])
         ref_vol = patch_to_vol(out["ref_center"], off, flip, patch)
-        ref_in = ((ref_vol >= -0.5) & (ref_vol <= shape - 0.5)).all(-1)
+        ref_in = kept(ref_vol, b)
         hm_xyz.append(patch_to_world(out["ref_center"], off, flip, patch, b["affine"])[ref_in])
     boxes, p = torch.cat(boxes).cpu().numpy(), torch.cat(ps).cpu().numpy()
     return {"hm_xyz": torch.cat(hm_xyz).cpu().numpy(), "dec_box": boxes, "dec_p": p, "dec_h": torch.cat(hs).cpu().numpy(),

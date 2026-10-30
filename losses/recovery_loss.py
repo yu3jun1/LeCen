@@ -1,7 +1,8 @@
 """恢复损失（仅 D1）。
 
-目标在 GT 框 × crop_scale 的范围内重采样为 out³：归一化强度（三线性，增强后输入）、实例 mask（最近邻）、
-有效体素 = valid_mask（最近邻）× 采样点落在 patch 内。
+目标为以 GT 中心为中心、边长 crop_mm 的固定物理立方体，重采样为 out³（32 mm / 32 = 1 mm 体素）：
+归一化强度（三线性，增强后输入）、实例 mask（最近邻）、有效体素 = valid_mask（最近邻）× 采样点落在 patch 内。
+裁剪范围不随框缩放：病灶的大小、形状与周围组织都留在目标里，h 必须编码它们，不能用一个居中模板重建。
 每个病灶：mask 的 BCE（按有效体素归一化）+ Dice；强度 L1 只在膨胀后的 mask 区域内计算。
 总恢复损失 = 所有有效病灶的平均；有效体素为 0 的病灶不参与平均并计数；无有效病灶时为 0。
 """
@@ -11,9 +12,9 @@ import torch.nn.functional as F
 from common.sampling import box_grid, inside_patch, sample
 
 
-def recovery_targets(image, labels, valid_mask, center, size, label, patch_zyx, out, scale):
-    """image (1, D, H, W)，labels / valid_mask (D, H, W)。返回 out³ 的 (x, msk, val)。"""
-    pts = box_grid(center, size * scale, out)
+def recovery_targets(image, labels, valid_mask, center, crop_vox, label, patch_zyx, out):
+    """image (1, D, H, W)，labels / valid_mask (D, H, W)；crop_vox 为裁剪立方体各轴边长（patch 体素）。返回 out³ 的 (x, msk, val)。"""
+    pts = box_grid(center, crop_vox, out)
     g = pts[None]
     x = sample(image[None], g, patch_zyx, "bilinear")
     msk = sample((labels == label).float()[None, None], g, patch_zyx, "nearest")
@@ -47,10 +48,9 @@ def recovery_inputs(out, batch, matches, cfg, patch_zyx):
     for b, (row, col) in enumerate(matches):
         keep = batch["has_mask"][b][col].cpu()
         for q, g in zip(row[keep], col[keep]):
-            box = batch["boxes"][b][g]
             hs.append(out["layers"][-1]["h"][b, q])
-            targets.append(recovery_targets(batch["image"][b], batch["labels"][b], batch["valid_mask"][b], box[:3], box[3:],
-                                            batch["label_value"][b][g], patch_zyx, r.out_size, r.crop_scale))
+            targets.append(recovery_targets(batch["image"][b], batch["labels"][b], batch["valid_mask"][b], batch["boxes"][b][g, :3],
+                                            r.crop_mm / batch["spacing"][b], batch["label_value"][b][g], patch_zyx, r.out_size))
     return hs, targets
 
 
