@@ -4,12 +4,8 @@ paths:
   luna16_annotations: /data/tanyuejun/LUNA16/meta/annotations.csv
   luna16_excluded: /data/tanyuejun/LUNA16/raw/evaluation/evaluationScript/annotations/annotations_excluded.csv
   luna16_evaluation_script: /home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py
-  raw_clinical: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom  # patient_id/study_uid/series_uid/
-  clinical_series: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/baseline/baseline_ct_verified.csv  # 核验后发布；候选表不作为正式输入
-  clinical_series_candidates: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/acrin_baseline_series.csv
-  clinical_table: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/model_inputs/clinical_features_audited.csv
-  clinical_meta: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/model_inputs/meta
-  clinical_processed: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/processed/LeCen
+  clinical_meta: ???           # 合并后的临床表、划分、肿瘤框与 crops（make_splits --part clinical 写出；新目录，不覆盖已冻结的 ACRIN 元数据）
+  clinical_processed: ???      # 两个队列预处理后的 clinical/<patient_id>.nii.gz 与 clinical_targets/
   lungmask_checkpoint: /data/tanyuejun/_shared/weights/lungmask/unet_r231-d5d2fc3d.pth
   processed: /data/tanyuejun/LUNA16/processed/LeCen
   meta: /data/tanyuejun/LUNA16/meta/LeCen
@@ -41,15 +37,19 @@ ctclip:
   pooled_grid: [12, 12, 12]
   dtype: float16
 clinical:
-  collection: acrin_nsclc_fdg_pet
-  columns:
-    patient_id: patient_id
-    time_days: os_time_days     # 审计后的注册日至死亡/末次有效联系天数
-    event: os_event
-    treatment: treatment
-  event_values: [1]             # 已审计的死亡事件
-  censor_values: [0]            # 已审计的删失；空值仍为未知，不补标签
-  covariates: [age, sex_male, baseline_PS, baseline_stage_IIIA, baseline_stage_IIIB, baseline_stage_Other]  # IIB为参照，I1入组基线字段
+  development: lung1          # 该队列做 train/val/test 划分；其余队列整体为外部测试（split = external）
+  covariates: [age, sex_male, stage]   # 各队列统一格式 clinical.csv 中的列；stage 为类别（I / II / IIIA / IIIB / other）
+  cohorts:
+    lung1:                    # NSCLC-Radiomics（MAASTRO），data/prep_lung1.py
+      collection: nsclc_radiomics
+      raw: ???                # IDC 下载的 CT 与 RTSTRUCT（patient_id/study_uid/series_uid/）
+      prep: ???               # clinical.csv、series.csv、tumors.csv（GTV-1 框）
+    acrin:                    # ACRIN 6668 外部测试，data/prep_acrin.py
+      collection: acrin_nsclc_fdg_pet
+      raw: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom   # patient_id/study_uid/series_uid/
+      frozen_meta: /data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/model_inputs/meta  # 已冻结的 115 例模型输入
+      prep: ???               # clinical.csv、series.csv、tumors.csv（BAMF-AIMI 框，只用于覆盖率报告）
+      bamf: ???               # IDC 下载的 BAMF-AIMI DICOM SEG
 splits:
   det: {train: [0, 1, 2, 3, 4, 5, 6], val: [7], test: [8, 9]}
   clin: {ratios: [0.6, 0.2, 0.2], stratify: [event, treatment], seed: 2026}

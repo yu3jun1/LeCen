@@ -8,7 +8,9 @@ bootstrap 重抽样的随访范围随样本变化，因此直接按公式计算�
 预先固定：t* = 730 天，若训练集中位随访（反向 KM）不足则改为该中位随访时间；τ = min(t*, 训练集随访时间的 80 分位数)；
 IBS 区间 [训练集最早事件时间, τ]。置信区间按患者 bootstrap 2,000 次。
 
-python -m eval.surv_eval --run runs/S5/<run_id> --final
+外部测试队列（split = external）使用开发队列训练集的 t*、τ、IBS 区间与删失分布。
+
+python -m eval.surv_eval --run runs/S5/<run_id> --final   # 测试集与外部测试队列各评一次
 """
 import argparse
 from pathlib import Path
@@ -63,7 +65,7 @@ def metrics(y_train, time, event, risk, surv, times, tau):
 
 def load(run, split):
     cfg = OmegaConf.load(run / "config.yaml")
-    meta = Path(cfg.paths.meta)
+    meta = Path(cfg.paths.clinical_meta)
     clin = pd.read_csv(meta / "clinical.csv", dtype={"patient_id": str}).merge(
         pd.read_csv(meta / "splits_clin.csv", dtype={"patient_id": str})[["patient_id", "split"]], on="patient_id")
     tr = clin[clin.split == "train"]
@@ -93,7 +95,7 @@ if __name__ == "__main__":
     ap.add_argument("--bootstrap", type=int, default=2000)
     args = ap.parse_args()
     run = Path(args.run)
-    split = "test" if args.final else "val"
     if args.final:
         register_final(OmegaConf.load(run / "config.yaml").name, run, run / "best.pt")
-    print(evaluate(run, split, args.bootstrap)["point"])
+    for split in ("test", "external") if args.final else ("val",):
+        print(split, evaluate(run, split, args.bootstrap)["point"])

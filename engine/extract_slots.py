@@ -3,8 +3,8 @@
 每位患者：全胸推理 → NMS 后 p > p_min 的候选 → cache/slots/<extractor_hash>/<patient_id>.npz：
 h (K×256)、p (K)、box_world (K×6)、raw_count 与元数据
 （含输入 series_uid、预处理 CT 与 CT-CLIP token 文件的 sha1）。已有同名缓存而元数据不一致时拒绝写入。
-选择：在临床验证集上，以主肿瘤覆盖率（被选 slot 中心落入肿瘤包围框外扩 cover_margin_mm）为目标，
-取能达到最大覆盖率的最小 K（≤ k_max），再取该 K 下仍达到最大覆盖率的最大 p 阈值；测试集沿用。
+选择：在开发队列的临床验证集上，以主肿瘤覆盖率（被选 slot 中心落入肿瘤包围框外扩 cover_margin_mm）为目标，
+取能达到最大覆盖率的最小 K（≤ k_max），再取该 K 下仍达到最大覆盖率的最大 p 阈值；测试集与外部测试队列沿用。
 验证集没有已标注肿瘤或覆盖率为 0 时停止：此时应先做临床定位适配（engine/adapt_clinical.py）。
 结果写入 selection_<sel_hash>.csv（patient_id、被选 slot 下标、阈值、K_max、是否空集合）。
 
@@ -23,14 +23,15 @@ from data.infer_dataset import InferCase
 from engine.infer_det import infer_case, load_detector, score_threshold_mask
 
 
-def extract(run, dev):
+def extract(run, paths, dev):
+    """paths：当前临床数据路径（configs/clin/base.yaml）；检测器与 token 缓存取自运行目录的配置。"""
     cfg, model = load_detector(run, dev)
     p_min = read_json(run / "p_min.json")["p_min"]
     ehash = extractor_hash(cfg, run / "checkpoints" / "best.pt", p_min)
     out_dir = Path(cfg.paths.cache) / "slots" / ehash
-    vol_dir, token_dir = Path(cfg.paths.processed) / "clinical", Path(cfg.paths.cache) / "ctclip"
-    splits = pd.read_csv(Path(cfg.paths.meta) / "splits_clin.csv", dtype={"patient_id": str})
-    series = pd.read_csv(Path(cfg.paths.meta) / "clinical.csv", dtype={"patient_id": str}).set_index("patient_id").series_uid
+    vol_dir, token_dir = Path(paths.clinical_processed) / "clinical", Path(cfg.paths.cache) / "ctclip"
+    splits = pd.read_csv(Path(paths.clinical_meta) / "splits_clin.csv", dtype={"patient_id": str})
+    series = pd.read_csv(Path(paths.clinical_meta) / "clinical.csv", dtype={"patient_id": str}).set_index("patient_id").series_uid
     for r in splits.itertuples():
         meta = {"patient_id": r.patient_id, "split": r.split, "extractor_hash": ehash, "preprocessing_version": cfg.preprocess.version,
                 "series_uid": series[r.patient_id], "ct_sha1": file_sha1(vol_dir / f"{r.patient_id}.nii.gz"),
@@ -46,15 +47,15 @@ def extract(run, dev):
         k = st["keep"][score_threshold_mask(st["dec_p"][st["keep"]], p_min)]
         write_npz(path, h=st["dec_h"][k], p=st["dec_p"][k], box_world=st["dec_box"][k],
                   raw_count=np.array(len(k)), **{k_: np.array(v) for k_, v in meta.items()})
-    return cfg, ehash, out_dir
+    return ehash, out_dir
 
 
 def covered(box_world, tumor, margin):
     return (np.abs(box_world[:, :3] - tumor[:3]) <= tumor[3:] / 2 + margin).all(1)
 
 
-def select(cfg, sel, ehash, out_dir):
-    meta = Path(cfg.paths.meta)
+def select(paths, sel, ehash, out_dir):
+    meta = Path(paths.clinical_meta)
     splits = pd.read_csv(meta / "splits_clin.csv", dtype={"patient_id": str})
     tumors = pd.read_csv(meta / "clinical_tumors.csv", dtype={"patient_id": str})
     slots = {pid: read_npz(out_dir / f"{pid}.npz") for pid in splits.patient_id}
@@ -92,7 +93,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--extractor", required=True)
     run = Path(ap.parse_args().extractor)
-    cfg, ehash, out_dir = extract(run, "cuda")
-    sel = OmegaConf.masked_copy(load_config(ROOT / "configs" / "clin" / "base.yaml").slots, ["k_max", "cover_margin_mm"])
-    shash, stats = select(cfg, sel, ehash, out_dir)
+    clin = load_config(ROOT / "configs" / "clin" / "base.yaml")
+    ehash, out_dir = extract(run, clin.paths, "cuda")
+    sel = OmegaConf.masked_copy(clin.slots, ["k_max", "cover_margin_mm"])
+    shash, stats = select(clin.paths, sel, ehash, out_dir)
     write_json(run / "slots.json", {"extractor_hash": ehash, "sel_hash": shash, "slot_dir": str(out_dir), **stats})

@@ -125,7 +125,8 @@ def test_slots_predictions_and_clinical_chain_share_strict_threshold_mask(tmp_pa
     monkeypatch.setattr(extract_slots, 'infer_case', lambda *args: st)
     captured = {}
     monkeypatch.setattr(extract_slots, 'write_npz', lambda path, **arrays: captured.update(arrays))
-    extract_slots.extract(tmp_path/'run', 'cpu')
+    paths = SimpleNamespace(clinical_meta=str(tmp_path/'clinical_meta'), clinical_processed=str(tmp_path/'clinical_processed'))
+    extract_slots.extract(tmp_path/'run', paths, 'cpu')
     predictions = infer_det.preds_frame({'patient': st}, threshold)
     assert np.array_equal(captured['p'], predictions.probability.to_numpy())
     assert len(captured['p']) == (3 if include_ties else 1)
@@ -134,5 +135,5 @@ def test_slots_predictions_and_clinical_chain_share_strict_threshold_mask(tmp_pa
     monkeypatch.setattr(recall_chain, 'spacing_zyx', lambda header: np.ones(3))
     monkeypatch.setattr(recall_chain, 'world_to_vox', lambda xyz, affine: np.asarray(xyz)[None])
     monkeypatch.setattr(recall_chain, 'retained', lambda *args: True)
-    rows, summary = recall_chain.clinical_chain(cfg, {'patient': st}, threshold, margin_mm=0)
+    rows, summary = recall_chain.clinical_chain(paths, {'patient': st}, threshold, margin_mm=0)
     assert bool(rows.work.iloc[0]) == include_ties

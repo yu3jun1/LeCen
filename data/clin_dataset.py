@@ -1,9 +1,9 @@
 """读取临床表、全局特征（G0）与 slot 缓存。
 
-临床变量的标准化与缺失处理只在训练集上拟合：只保留训练集上方差非零的列（列表随之冻结用于验证、测试），
+临床变量的标准化与缺失处理只在训练集（开发队列）上拟合，外部队列沿用：只保留训练集上方差非零的列（列表随之冻结用于验证、测试），
 按训练集均值/标准差标准化，缺失按训练集均值填补，缺失指示保留在表中。
 全局特征 g_global（G0）：缓存的 12×12×12 CT-CLIP token 在空间维度上的均值（512 维），与检测器无关，
-所有影像生存配置共用；按训练集逐维标准化。它是 token 均值池化表示，不是 CT-CLIP 官方的图像级 latent。
+所有影像生存配置共用；按训练集逐维标准化，外部队列沿用。它是 token 均值池化表示，不是 CT-CLIP 官方的图像级 latent。
 slot 只在 model.slots 时读取，按 selection_<sel_hash>.csv 选择后补齐到批内最大 K；空集合患者 mask 全 0、empty = 1。
 """
 from pathlib import Path
@@ -17,11 +17,11 @@ from common.io import read_json, read_npz
 
 GLOBAL_FEATURE = "mean of cached 12x12x12 CT-CLIP tokens (1728x512 -> 512), train-set z-score"
 
-LABEL_COLS = ["patient_id", "series_uid", "time_days", "event", "treatment", "split"]
+LABEL_COLS = ["patient_id", "cohort", "series_uid", "time_days", "event", "treatment", "split"]
 
 
 def load_table(cfg):
-    meta = Path(cfg.paths.meta)
+    meta = Path(cfg.paths.clinical_meta)
     clin = pd.read_csv(meta / "clinical.csv", dtype={"patient_id": str})
     splits = pd.read_csv(meta / "splits_clin.csv", dtype={"patient_id": str})[["patient_id", "split"]]
     df = clin.merge(splits, on="patient_id")

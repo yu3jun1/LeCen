@@ -18,7 +18,7 @@ from omegaconf import OmegaConf
 
 from common.dist import is_main, reduce_log, setup, teardown, world, wrap
 from common.hashing import file_sha1
-from common.io import append_csv, make_run
+from common.io import ROOT, append_csv, load_config, make_run
 from common.seed import set_determinism
 from data.det_dataset import DetPatchDataset, loader, luna_dataset, to_device
 from engine.train_det import TrainStep, build_optim, optimizer_step, save, save_failure
@@ -47,8 +47,9 @@ def main(src, overrides):
     ddp = wrap(step_fn, dev)
     params = list(step_fn.parameters())
     optimizer, scheduler = build_optim(cfg, model, list(recovery.parameters()) if recovery else [])
-    p = Path(cfg.paths.processed)
-    splits = pd.read_csv(Path(cfg.paths.meta) / "splits_clin.csv", dtype={"patient_id": str})
+    paths = load_config(ROOT / "configs" / "data.yaml").paths  # 当前临床数据路径，不取源运行目录中的配置
+    p = Path(paths.clinical_processed)
+    splits = pd.read_csv(Path(paths.clinical_meta) / "splits_clin.csv", dtype={"patient_id": str})
     clin = DetPatchDataset(cfg, splits[splits.split == "train"].patient_id, p / "clinical", None, p / "clinical_targets", True)
     clin_batches = loader(cfg, clin, cfg.seeds.data)
     luna_batches = loader(cfg, luna_dataset(cfg, "train", augment=True), cfg.seeds.data)

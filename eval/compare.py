@@ -6,6 +6,7 @@
 
 python -m eval.compare --a runs/D1/<id> --b runs/D2/<id> --metrics cpm,sens1fp_3to6 --bootstrap 2000
 python -m eval.compare --a runs/S5/<id> --b runs/S2/<id> --metrics cindex_ipcw --bootstrap 2000
+python -m eval.compare --a runs/S5/<id> --b runs/S1/<id> --metrics cindex_ipcw --split external
 """
 import argparse
 from pathlib import Path
@@ -41,8 +42,8 @@ def det_samplers(run_a, run_b):
     return list(by_pid.index), lambda pids: (fn(rec[0], pids), fn(rec[1], pids))
 
 
-def surv_samplers(run_a, run_b):
-    loaded = [surv_eval.load(r, "test") for r in (run_a, run_b)]
+def surv_samplers(run_a, run_b, split):
+    loaded = [surv_eval.load(r, split) for r in (run_a, run_b)]
     pids = list(loaded[0][4]["patient_id"])
 
     def fn(l, idx):
@@ -52,8 +53,12 @@ def surv_samplers(run_a, run_b):
     return pids, lambda ps: tuple(fn(l, np.array([o[p] for p in ps])) for l, o in zip(loaded, order))
 
 
-def compare(run_a, run_b, metric_names, n_boot, seed=0):
-    pids, both = (det_samplers if (run_a / "preds_test.csv").exists() else surv_samplers)(run_a, run_b)
+def compare(run_a, run_b, metric_names, n_boot, split="test", seed=0):
+    """split：检测只有 test；生存为 test 或 external（外部测试队列）。"""
+    if (run_a / "preds_test.csv").exists():
+        pids, both = det_samplers(run_a, run_b)
+    else:
+        pids, both = surv_samplers(run_a, run_b, split)
     rng = np.random.default_rng(seed)
     diffs = []
     for _ in range(n_boot):
@@ -73,10 +78,11 @@ if __name__ == "__main__":
     ap.add_argument("--b", required=True)
     ap.add_argument("--metrics", required=True)
     ap.add_argument("--bootstrap", type=int, default=2000)
+    ap.add_argument("--split", choices=["test", "external"], default="test")
     args = ap.parse_args()
     a, b = Path(args.a), Path(args.b)
-    res = compare(a, b, args.metrics.split(","), args.bootstrap)
-    write_json(ROOT / "runs" / "compare" / f"{a.parent.name}-{a.name}_vs_{b.parent.name}-{b.name}.json",
-               {"a": str(a), "b": str(b), "n_boot": args.bootstrap, "results": res})
+    res = compare(a, b, args.metrics.split(","), args.bootstrap, args.split)
+    write_json(ROOT / "runs" / "compare" / f"{a.parent.name}-{a.name}_vs_{b.parent.name}-{b.name}_{args.split}.json",
+               {"a": str(a), "b": str(b), "split": args.split, "n_boot": args.bootstrap, "results": res})
     for k, v in res.items():
         print(f"{k}: Δ={v['diff_mean']:+.4f}  95% CI [{v['ci95'][0]:+.4f}, {v['ci95'][1]:+.4f}]  {v['verdict']}")

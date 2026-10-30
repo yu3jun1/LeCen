@@ -23,11 +23,11 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 | `paths.luna16_seg` | `/data/tanyuejun/LUNA16/raw/seg_lungs/seg-lungs-LUNA16` |
 | `paths.luna16_annotations` / `paths.luna16_excluded` | 已填入现有 `annotations.csv` / `annotations_excluded.csv` |
 | `paths.luna16_evaluation_script` | `/home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py` |
-| `paths.raw_clinical` | `/data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom`，支持患者／检查／序列目录 |
-| `paths.clinical_series` | `ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/baseline/baseline_ct_verified.csv`，119例通过本轮时点与技术核验；建模取统一队列115例 |
-| `paths.clinical_table` | `ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/model_inputs/clinical_features_audited.csv`，审计后的OS与基线变量；原始临床源表完整保留 |
-| `paths.processed` | 检测：`/data/tanyuejun/LUNA16/processed/LeCen`；临床：`/data/tanyuejun/ACRIN-NSCLC-FDG-PET/processed/LeCen` |
-| `paths.meta` | 检测：`/data/tanyuejun/LUNA16/meta/LeCen`；生存配置使用 `paths.clinical_meta` 指向独立冻结的临床元数据 |
+| `paths.processed` / `paths.meta` | 检测：`/data/tanyuejun/LUNA16/processed/LeCen`、`/data/tanyuejun/LUNA16/meta/LeCen` |
+| `paths.clinical_meta` / `paths.clinical_processed` | 待填（`???`）：两个临床队列合并后的元数据与预处理体积，新目录，不覆盖已冻结的 ACRIN 元数据 |
+| `clinical.cohorts.lung1.raw` / `.prep` | 待填：Lung1 的 IDC 下载目录与统一格式输入目录 |
+| `clinical.cohorts.acrin.raw` / `.frozen_meta` | `/data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom`；已冻结的115例模型输入 `verified_v1_20261029/model_inputs/meta` |
+| `clinical.cohorts.acrin.prep` / `.bamf` | 待填：ACRIN 统一格式输入目录与 BAMF-AIMI DICOM SEG 下载目录 |
 | `paths.cache` | `/data/tanyuejun/_shared/cache/LeCen` |
 | `ctclip.checkpoint` | `/data/tanyuejun/_shared/weights/ctclip/CT-CLIP_v2.pt` |
 | `ctclip.token_layer` | `""`，使用 encoder 本身，与现有 12³ token 缓存一致 |
@@ -38,16 +38,20 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 预处理版本为 `lecen_pp_v1_ctclip_v2_mean12_20261028`，LUNA16 外扩为 10 mm，均与现有缓存一致。
 `~/.pylidcrc` 已指向 `/data/tanyuejun/LIDC-IDRI/dicom`。
 
-本轮临床源审计已完成：原242位影像患者中238位OS可判定；119位通过基线时点、完整体积与Codex图像覆盖质控。
-与OS及原始资格记录取交集后，S0–S5统一冻结为115位，患者级train/val/test为69/23/23，分层种子2026。
-临床变量为年龄、性别、I1入组Zubrod与分期；实际治疗完成、剂量、后PET和随访信息不作为基线预测变量或影像资格条件。
-治疗为同一计划CRT类别，S3按方案不运行。日期验证分基线间隔匹配与独立CT/PT TimePointID直接匹配，两者都保留原始日期及证据；后PET只作审计。
+### 临床队列：Lung1 开发，ACRIN 外部测试
 
-S0不依赖检测器；S1只需已核验原始CT的全局CT-CLIP缓存，不依赖肿瘤标注或slot。
-原始CT另导出到 `clinical_original/` 供标注复核，完整DICOM、原始临床表及未解决病例均保留。
-`clinical_tumors.csv` 当前只有表头，真实CT肿瘤标注仍待提供；本次Codex技术图审不等同放射科专家诊断或肿瘤真值。
-S2/S4/S5及临床定位适配、slot选择须待真实CT标注齐备。`adapt.iters`仍仅在覆盖不足时按共同协议设置。
-核验方法、来源、敏感性名单和运行状态见[临床核验报告](docs/reports/2026-10-29-acrin-clinical-verification.md)。
+- **开发队列 NSCLC-Radiomics（Lung1，MAASTRO，IDC `nsclc_radiomics`）**：422例不可手术NSCLC，根治性放疗或放化疗；
+  OS 来自 `Survival.time` / `deadstatus.event`。按 (event, treatment) 分层 60/20/20，种子2026。
+  主肿瘤框为 RTSTRUCT 中 GTV-1 的外接框（放疗科人工勾画），用于验证集覆盖率、slot 选择与临床定位适配。
+  文献报告少数病例的 GTV 文件错误或与 CT 错位；`tumors_missing.csv` 记录没有 GTV-1 的病例，错位病例无法自动识别。
+- **外部测试队列 ACRIN 6668**：沿用已冻结的115例与审计后的 OS（来源与核验见[临床核验报告](docs/reports/2026-10-29-acrin-clinical-verification.md)），
+  不参与训练、调参、slot 选择或任何阈值确定，整体为 `split = external`，不需要人工肿瘤标注。
+  BAMF-AIMI 的 PET/CT AI 分割（IDC `bamf_aimi_annotations`，少数经放射科或非专家修正）转为框，只用于报告外部队列主肿瘤覆盖率。
+  这些分割定义在 PET 网格上：只采用与所选基线 CT 的 FrameOfReferenceUID 相同的 SEG，其余记入 `tumors_unmatched.csv`；AI 分割可能过大或含多处病灶。
+- **统一变量**：age、sex_male、stage（I / II / IIIA / IIIB / other；ACRIN 的 IIB 记为 II）。ACRIN 的 Zubrod PS 在 Lung1 中没有，不进入模型。
+  两个队列都没有可比的治疗细分，treatment 统一为 RT±chemo，S3 不运行。
+  标准化、缺失填补、G0 标准化、生存时间分箱、t\*、τ 与删失分布都只在 Lung1 训练集上拟合，外部队列沿用。
+- ACRIN 此前以 69/23/23 划分完成的 S0/S1 正式测试属于旧设计，保留记录；新设计下 ACRIN 的结果来自 Lung1 训练的模型。
 
 ## 命令
 
@@ -56,8 +60,12 @@ S2/S4/S5及临床定位适配、slot选择须待真实CT标注齐备。`adapt.it
 python -m data.crop_rules --cfg configs/data.yaml --fit-on train      # 确定外扩量并写回配置
 python -m data.prep_luna16 --cfg configs/data.yaml --subset 0          # 逐个子集 0…9
 python -m data.build_instances --cfg configs/data.yaml
-# python -m data.make_splits --cfg configs/data.yaml    # 从零重建备用；当前固定划分不重跑，临床由独立冻结流程管理
-# 临床当前由外部队列接续：本地原始CT→全局token；肿瘤标注齐备后再做肺裁剪/targets，不重复下载原CT
+# python -m data.make_splits --cfg configs/data.yaml --part det    # 从零重建备用；当前检测划分不重跑
+python -m data.prep_lung1 --cfg configs/data.yaml               # Lung1：IDC 下载 CT + RTSTRUCT，写统一格式输入与 GTV-1 框
+python -m data.prep_acrin --cfg configs/data.yaml               # ACRIN：冻结的115例转统一格式；下载 BAMF SEG 并转框
+python -m data.make_splits --cfg configs/data.yaml --part clinical   # 合并队列：Lung1 划分，ACRIN = external
+python -m data.prep_clinical --cfg configs/data.yaml --cohort lung1  # CT-CLIP token、肺裁剪、clinical_targets
+python -m data.prep_clinical --cfg configs/data.yaml --cohort acrin
 python -m data.crop_rules --cfg configs/data.yaml --audit             # 事后保留率审计
 pytest tests/ -k "coords or sampling or lidc or ctclip or crop or eval_oracle or dataset"
 
@@ -82,12 +90,14 @@ python -m engine.infer_det --run runs/D0a/20261029-055704-resume-e134 --split te
 python -m engine.train_surv --cfg configs/clin/S0.yaml
 python -m engine.train_surv --cfg configs/clin/S1.yaml
 python -m eval.recall_chain --run ${D1_CLINICAL_RUN} --split val --cohort clinical
+python -m eval.recall_chain --run ${D1_CLINICAL_RUN} --split external --cohort clinical   # ACRIN 覆盖率（BAMF 框，只报告）
 python -m engine.adapt_clinical --extractor ${D1_CLINICAL_RUN} adapt.iters=<步数>   # 仅在覆盖不足时；也可用 torchrun 启动
 python -m engine.extract_slots --extractor ${D1_CLINICAL_RUN}
 python -m engine.extract_slots --extractor ${D2_CLINICAL_RUN}
 python -m engine.train_surv --cfg configs/clin/S5.yaml slots.extractor="${D1_CLINICAL_RUN}"
-python -m eval.surv_eval --run ${S5_RUN} --final
+python -m eval.surv_eval --run ${S5_RUN} --final          # Lung1 测试集与 ACRIN 外部队列各评一次
 python -m eval.compare --a ${S5_RUN} --b ${S2_RUN} --metrics cindex_ipcw --bootstrap 2000
+python -m eval.compare --a ${S5_RUN} --b ${S1_RUN} --metrics cindex_ipcw --bootstrap 2000 --split external
 ```
 
 ## 运行目录与自动接续
@@ -99,7 +109,7 @@ python -m eval.compare --a ${S5_RUN} --b ${S2_RUN} --metrics cindex_ipcw --boots
 自动队列每180秒检查数据与依赖，准备就绪后并行接续；只使用GPU1–7，优先2–7，GPU0禁用。
 D1/D2完成后先分析训练更新、验证曲线及定位信息丢失链，再判断是否需要修复或延长训练。需要重训时由本会话自动接续；共同逻辑改动保持共享初始化及比较协议。
 最终测试和依赖检测器的临床任务等待此次分析完成；测试集仅用于最终报告，不参与选择重训方案。
-真实CT肿瘤标注尚缺时，相关临床任务保持等待，不生成伪造真值。
+slot 选择与临床定位适配只使用 Lung1 的 GTV-1 框；ACRIN 不需要人工肿瘤标注，BAMF 框只用于报告覆盖率，不生成伪造真值。
 
 本轮D1/D2均完成连续30000次有限更新；验证集CPM选择的最佳检查点分别为28000、20000步，完整三万步权重保留在各自`milestones/step_030000/`。
 完成后的验证复核修复了float32概率与float64阈值比较的同分边界：`p_min`仍严格大于，LUNA工作点按FROC阈值包含等分候选，slot过滤使用同一严格比较函数。该修复不改变已训练的参数。
@@ -107,7 +117,7 @@ D1/D2完成后先分析训练更新、验证曲线及定位信息丢失链，再
 
 ## 生存配置
 
-所有影像配置共用同一个全局向量 G0：缓存的 12×12×12 CT-CLIP token 在空间维度上的均值（512 维，按训练集标准化），
+所有影像配置共用同一个全局向量 G0：缓存的 12×12×12 CT-CLIP token 在空间维度上的均值（512 维，按 Lung1 训练集标准化），
 与检测器无关；它是 token 均值池化表示，不是 CT-CLIP 官方的图像级 latent。病灶 slot 为 256 维。
 
 | 配置 | 输入 | 主要比较 |
@@ -115,7 +125,7 @@ D1/D2完成后先分析训练更新、验证曲线及定位信息丢失链，再
 | S0 | Cox：临床变量 + 治疗 one-hot | 影像是否带来临床之外的信息 |
 | S1（G0） | `[g_global; c; e(a)]`，不使用检测器、slot 与 GlobalAdapter | 整幅 CT 编码基线 |
 | S2 | D1 slot，先聚合再用 g 更新 | S5 vs S2：条件更新的位置 |
-| S3 | S5 去掉治疗输入（仅在治疗有变化时运行） | 治疗输入是否必要 |
+| S3 | S5 去掉治疗输入（仅在治疗有变化时运行；Lung1 + ACRIN 设计下不运行） | 治疗输入是否必要 |
 | S4 | D2 slot，其余同 S5 | S5 vs S4：恢复训练对 slot 的作用 |
 | S5 | D1 slot，逐病灶更新后聚合：`[r; m; g_global; c; e(a)]` | S5 vs S1：病灶中心表征 vs 整幅 CT 编码 |
 

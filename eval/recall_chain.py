@@ -2,10 +2,11 @@
 预处理后保留 → 热图 top-N 候选覆盖（候选中心在结节半径内）→ decoder 输出命中 → NMS 后命中 → 工作点命中，按尺寸分层汇总。
 工作点为该划分上 1 FP/scan 的概率阈值。保留与 crop_audit.csv 使用同一判定，只作审计。
 临床队列对主肿瘤（框体积最大者）做同样统计，命中为中心落入肿瘤框外扩 cover_margin_mm，工作点为 p > p_min；
-并记录回退与被截断患者比例。
+并记录回退与被截断患者比例。外部测试队列（--split external）的肿瘤框来自 BAMF-AIMI 分割，只作报告。
 
 python -m eval.recall_chain --run runs/D1/<run_id> --split val
 python -m eval.recall_chain --run runs/D1/<run_id> --split val --cohort clinical
+python -m eval.recall_chain --run runs/D1/<run_id> --split external --cohort clinical
 """
 import argparse
 from pathlib import Path
@@ -64,8 +65,9 @@ def chain_summary(cfg, stages, records):
     return {f"chain_{k}": float(s.loc["all", k]) for k in STAGES}
 
 
-def clinical_chain(cfg, stages, p_min, margin_mm):
-    meta = Path(cfg.paths.meta)
+def clinical_chain(paths, stages, p_min, margin_mm):
+    """paths：当前临床数据路径（configs/clin/base.yaml），不取检测器运行目录中的配置。"""
+    meta = Path(paths.clinical_meta)
     tumors = pd.read_csv(meta / "clinical_tumors.csv", dtype={"patient_id": str})
     crops = pd.read_csv(meta / "crops.csv", dtype={"case_id": str}).set_index("case_id").fillna({"fallback_reason": ""})
     rows = []
@@ -75,7 +77,7 @@ def clinical_chain(cfg, stages, p_min, margin_mm):
             continue
         box = world_list(t.bbox_world)
         box = box[np.argmax(box[:, 3:].prod(1))]
-        h = read_header(Path(cfg.paths.processed) / "clinical" / f"{pid}.nii.gz")
+        h = read_header(Path(paths.clinical_processed) / "clinical" / f"{pid}.nii.gz")
         kept = retained(world_to_vox(box[:3], affine_of(h))[0], box[[5, 4, 3]] / 2 / spacing_zyx(h), 0, np.array(h.GetSize())[::-1])
         half = box[3:] / 2 + margin_mm
         rows.append({"patient_id": pid, "crop_mode": crops.crop_mode[pid], "fallback": crops.fallback_reason[pid] != "",
@@ -88,7 +90,7 @@ def clinical_chain(cfg, stages, p_min, margin_mm):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
-    ap.add_argument("--split", choices=["train", "val", "test"], required=True)
+    ap.add_argument("--split", choices=["train", "val", "test", "external"], required=True)
     ap.add_argument("--cohort", choices=["luna16", "clinical"], default="luna16")
     args = ap.parse_args()
     run = Path(args.run)
@@ -102,10 +104,10 @@ if __name__ == "__main__":
         write_csv(run / "mech" / f"recall_chain_{args.split}_nodules.csv", df)
         write_csv(run / "mech" / "recall_chain.csv", summary)
     else:
-        s = pd.read_csv(Path(cfg.paths.meta) / "splits_clin.csv", dtype={"patient_id": str})
-        stages = predict(model, cfg, s[s.split == args.split].patient_id, Path(cfg.paths.processed) / "clinical", "cuda")
-        margin = load_config(ROOT / "configs" / "clin" / "base.yaml").slots.cover_margin_mm
-        df, summary = clinical_chain(cfg, stages, p_min, margin)
+        clin = load_config(ROOT / "configs" / "clin" / "base.yaml")
+        s = pd.read_csv(Path(clin.paths.clinical_meta) / "splits_clin.csv", dtype={"patient_id": str})
+        stages = predict(model, cfg, s[s.split == args.split].patient_id, Path(clin.paths.clinical_processed) / "clinical", "cuda")
+        df, summary = clinical_chain(clin.paths, stages, p_min, clin.slots.cover_margin_mm)
         write_csv(run / "mech" / f"recall_chain_clinical_{args.split}_patients.csv", df)
         write_csv(run / "mech" / f"recall_chain_clinical_{args.split}.csv", summary)
     print(summary.to_string(index=False))

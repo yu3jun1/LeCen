@@ -116,9 +116,11 @@ def audit(cfg):
         sp = spacing_zyx(h)
         c, half = luna_targets(ann, r.seriesuid, affine_of(h), sp)
         rows.append((r.seriesuid, r.split, c, half, h))
-    tumors = pd.read_csv(meta / "clinical_tumors.csv", dtype={"patient_id": str})
-    for r in pd.read_csv(meta / "splits_clin.csv", dtype={"patient_id": str}).itertuples():
-        h = read_header(Path(p.processed) / "clinical" / f"{r.patient_id}.nii.gz")
+    clin_meta = Path(p.clinical_meta)
+    crops = pd.concat([crops, pd.read_csv(clin_meta / "crops.csv", dtype={"case_id": str}).set_index("case_id")])
+    tumors = pd.read_csv(clin_meta / "clinical_tumors.csv", dtype={"patient_id": str})
+    for r in pd.read_csv(clin_meta / "splits_clin.csv", dtype={"patient_id": str}).itertuples():
+        h = read_header(Path(p.clinical_processed) / "clinical" / f"{r.patient_id}.nii.gz")
         box = world_list(tumors[tumors.patient_id == r.patient_id].bbox_world)
         c = world_to_vox(box[:, :3], affine_of(h))
         rows.append((r.patient_id, r.split, c, box[:, [5, 4, 3]] / 2 / spacing_zyx(h), h))

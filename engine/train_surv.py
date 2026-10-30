@@ -4,16 +4,19 @@ python -m engine.train_surv --cfg configs/clin/S5.yaml slots.extractor=runs/D1/<
 
 S0：lifelines CoxPH（penalizer 0.1），输入临床变量 + 治疗 one-hot。
 其余：AdamW（lr 1e-3，wd 1e-4），batch 32，最多 200 epoch，以验证集损失早停（patience 20）。
-临床变量标准化、缺失处理、时间分箱只在训练集上拟合。验证集与测试集输出 risk = 1 − Ŝ(t*) 与 IBS 时间点上的 Ŝ。
+临床变量标准化、缺失处理、时间分箱只在训练集（开发队列）上拟合。验证集、测试集与外部测试队列输出
+risk = 1 − Ŝ(t*) 与 IBS 时间点上的 Ŝ。
 """
 import argparse
 import copy
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
 from lifelines import CoxPHFitter
 
+from common.hashing import file_sha1
 from common.io import data_hashes, load_config, make_run, read_json, write_npz
 from common.seed import generator
 from data.clin_dataset import cohort, global_hashes, load_table, take
@@ -80,14 +83,14 @@ def main(cfg):
     tr = df[df.split == "train"]
     t_star, tau, ibs_times = fixed_times(tr.time_days.to_numpy(float), tr.event.to_numpy(int), cfg.surv)
     times = np.r_[t_star, ibs_times]
-    hashes = data_hashes(cfg)
+    hashes = {**data_hashes(cfg), "splits_clin": file_sha1(Path(cfg.paths.clinical_meta) / "splits_clin.csv")}
     if cfg.model.type != "cox":
         hashes.update(global_hashes(cfg, df.patient_id))
     if cfg.model.type != "cox" and cfg.model.slots:
         hashes.update(read_json(f"{cfg.slots.extractor}/slots.json"))
     run = make_run(cfg, hashes)
     predict = fit_cox(cfg, df, x, times) if cfg.model.type == "cox" else fit_neural(cfg, df, x, times, run)
-    for split in ("val", "test"):
+    for split in ("val", "test", "external"):
         m = (df.split == split).to_numpy()
         s = predict(m)
         write_npz(run / f"preds_{split}.npz", patient_id=df.patient_id[m].to_numpy(str), risk=1 - s[:, 0], surv=s[:, 1:],

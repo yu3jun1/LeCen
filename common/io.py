@@ -115,10 +115,8 @@ def register_final(config_name, run_dir, ckpt):
 
 
 def data_hashes(cfg):
-    meta = Path(cfg.paths.meta)
     return {
-        "splits_det": file_sha1(meta / "splits_det.csv"),
-        "splits_clin": file_sha1(meta / "splits_clin.csv"),
+        "splits_det": file_sha1(Path(cfg.paths.meta) / "splits_det.csv"),
         "crop_luna_margin_mm": cfg.preprocess.crop.luna.margin_mm,
         "crop_clinical_margin_mm": cfg.preprocess.crop.clinical.margin_mm,
         "preprocessing_version": cfg.preprocess.version,

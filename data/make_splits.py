@@ -2,10 +2,12 @@
 
 检测：训练 subset0–6，验证 subset7，测试 subset8–9；用 pylidc 的 patient_id 检查跨划分患者，
 把这类患者的全部扫描移入训练集并记录。同时按 MONAI 教程格式写出 D0a 的数据列表。
-临床：在合格队列（clinical_cohort）上 60/20/20，按 (event, treatment) 分层，种子 2026，只使用一次；
-同时写出 meta/clinical.csv（合格患者的清洗后临床表，含 series_uid）与 meta/clinical_excluded.csv。
+临床：合并各队列的合格患者（clinical_cohort）；clinical.development 队列 60/20/20，按 (event, treatment) 分层，
+种子 2026，只使用一次；其余队列整体为外部测试（split = external）。写到 paths.clinical_meta：
+clinical.csv（含 cohort、series_uid）、clinical_excluded.csv、splits_clin.csv 与 clinical_tumors.csv（合格患者的肿瘤框）。
 
-python -m data.make_splits --cfg configs/data.yaml
+python -m data.make_splits --cfg configs/data.yaml --part det
+python -m data.make_splits --cfg configs/data.yaml --part clinical
 """
 import argparse
 from pathlib import Path
@@ -16,7 +18,7 @@ import pylidc as pl
 
 from common.boxes import luna_to_monai
 from common.io import load_config, write_csv, write_json
-from data.prep_clinical import clinical_cohort
+from data.prep_clinical import clinical_cohort, read_tumors
 
 
 def det_splits(cfg):
@@ -47,33 +49,39 @@ def monai_datalist(cfg, det):
 
 def clin_splits(cfg, cohort):
     c = cfg.splits.clin
-    df = cohort[["patient_id", *c.stratify]].copy()
+    df = cohort[["patient_id", "cohort", *c.stratify]].copy()
     df["stratum"] = df[list(c.stratify)].astype(str).agg("|".join, axis=1)
     rng = np.random.default_rng(c.seed)
-    df["split"] = ""
-    for _, idx in sorted(df.groupby("stratum").groups.items()):
+    df["split"] = "external"
+    for _, idx in sorted(df[df.cohort == cfg.clinical.development].groupby("stratum").groups.items()):
         idx = rng.permutation(np.array(idx))
         n_tr, n_va = round(c.ratios[0] * len(idx)), round(c.ratios[1] * len(idx))
         df.loc[idx[:n_tr], "split"] = "train"
         df.loc[idx[n_tr:n_tr + n_va], "split"] = "val"
         df.loc[idx[n_tr + n_va:], "split"] = "test"
     df["seed"] = c.seed
-    return df[["patient_id", "split", "event", "treatment", "stratum", "seed"]]
+    return df[["patient_id", "cohort", "split", "event", "treatment", "stratum", "seed"]]
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--cfg", required=True)
-    cfg = load_config(ap.parse_args().cfg)
-    meta = Path(cfg.paths.meta)
-    det = det_splits(cfg)
-    write_csv(meta / "splits_det.csv", det)
-    write_json(meta / "monai_datalist_det.json", monai_datalist(cfg, det))
-    print(det.groupby("split").size().to_string(), f"\nmoved: {int(det.moved.sum())}")
-    cohort, excluded = clinical_cohort(cfg)
-    write_csv(meta / "clinical.csv", cohort)
-    write_csv(meta / "clinical_excluded.csv", excluded)
-    print(f"临床合格 {len(cohort)}，排除 {len(excluded)}：", excluded.reason.value_counts().to_dict())
-    clin = clin_splits(cfg, cohort)
-    write_csv(meta / "splits_clin.csv", clin)
-    print(clin.groupby(["split", "stratum"]).size().to_string())
+    ap.add_argument("--part", choices=["det", "clinical"], required=True)
+    args = ap.parse_args()
+    cfg = load_config(args.cfg)
+    if args.part == "det":
+        meta = Path(cfg.paths.meta)
+        det = det_splits(cfg)
+        write_csv(meta / "splits_det.csv", det)
+        write_json(meta / "monai_datalist_det.json", monai_datalist(cfg, det))
+        print(det.groupby("split").size().to_string(), f"\nmoved: {int(det.moved.sum())}")
+    else:
+        meta = Path(cfg.paths.clinical_meta)
+        cohort, excluded = clinical_cohort(cfg)
+        write_csv(meta / "clinical.csv", cohort)
+        write_csv(meta / "clinical_excluded.csv", excluded)
+        write_csv(meta / "clinical_tumors.csv", read_tumors(cfg, cohort.patient_id))
+        print("临床合格：", cohort.cohort.value_counts().to_dict(), "排除：", excluded.groupby(["cohort", "reason"]).size().to_dict())
+        clin = clin_splits(cfg, cohort)
+        write_csv(meta / "splits_clin.csv", clin)
+        print(clin.groupby(["cohort", "split", "stratum"]).size().to_string())

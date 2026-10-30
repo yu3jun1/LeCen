@@ -18,13 +18,13 @@ def make_cohort(tmp_path):
     meta, tok = tmp_path / "meta", tmp_path / "cache" / "ctclip"
     meta.mkdir()
     tok.mkdir(parents=True)
-    pd.DataFrame({"patient_id": pids, "series_uid": pids, "time_days": rng.uniform(30, 1500, N),
+    pd.DataFrame({"patient_id": pids, "cohort": ["dev"] * 32 + ["ext"] * 8, "series_uid": pids, "time_days": rng.uniform(30, 1500, N),
                   "event": (rng.random(N) < 0.6).astype(int), "treatment": ["A", "B"] * (N // 2),
                   "age": rng.normal(60, 8, N)}).to_csv(meta / "clinical.csv", index=False)
-    pd.DataFrame({"patient_id": pids, "split": ["train"] * 24 + ["val"] * 8 + ["test"] * 8}).to_csv(meta / "splits_clin.csv", index=False)
+    pd.DataFrame({"patient_id": pids, "split": ["train"] * 20 + ["val"] * 6 + ["test"] * 6 + ["external"] * 8}).to_csv(meta / "splits_clin.csv", index=False)
     for pid in pids:
         write_npz(tok / f"{pid}.npz", tokens=rng.standard_normal((1728, 512)).astype(np.float16))
-    return pids, [f"paths.meta={meta}", f"paths.cache={tmp_path / 'cache'}", "train.max_epochs=3"]
+    return pids, [f"paths.clinical_meta={meta}", f"paths.cache={tmp_path / 'cache'}", "train.max_epochs=3"]
 
 
 def make_extractor(tmp_path, name, pids, scale):
@@ -53,8 +53,10 @@ def test_s1_runs_without_detector_or_slots(tmp_path, monkeypatch):
     assert "h" not in data and data["g_global"].shape == (N, 512)
     run = tmp_path / "run"
     run.mkdir()
-    surv = fit_neural(cfg, df, x, np.array([100.0, 300.0]), run)((df.split == "test").to_numpy())
-    assert surv.shape == (8, 2) and np.isfinite(surv).all()
+    predict = fit_neural(cfg, df, x, np.array([100.0, 300.0]), run)
+    for split, n in (("test", 6), ("external", 8)):
+        surv = predict((df.split == split).to_numpy())
+        assert surv.shape == (n, 2) and np.isfinite(surv).all()
 
 
 def test_global_shared_across_configs(tmp_path):

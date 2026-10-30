@@ -1,7 +1,4 @@
 defaults: [../data.yaml]
-paths:
-  meta: ${paths.clinical_meta}
-  processed: ${paths.clinical_processed}
 slots:
   extractor: null  # 由队列注入已完成 slot 提取的实际运行目录；手动运行需显式指定 slots.extractor
   k_max: 16
