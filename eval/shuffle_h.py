@@ -40,7 +40,7 @@ def main(run):
     hs, targets = [], []
     for i in range(0, len(samples), cfg.train.batch):
         batch = to_device(collate(samples[i:i + cfg.train.batch]), dev)
-        with torch.autocast("cuda", dtype=torch.float16, enabled=cfg.train.amp):
+        with torch.autocast("cuda", dtype=torch.bfloat16, enabled=cfg.train.amp):
             out = model(batch["image"], batch["tokens"], batch["token_xyz"], batch)
         h, t = recovery_inputs(out, batch, match_layers(out, batch["boxes"], cfg, patch)[-1], cfg, patch)
         hs += h

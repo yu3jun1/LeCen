@@ -21,7 +21,7 @@ loss:
   w: {hm: 1.0, size: 0.1, exist: 2.0, l1: 5.0, giou: 2.0, local: 1.0}
 optim: {type: adamw, lr_decoder: 2.0e-4, lr_backbone: 1.0e-4, wd: 1.0e-4,
         warmup_iters: 1000, schedule: cosine, clip_norm: 1.0}
-train: {batch: 4, accum_steps: 1, iters: 60000, amp: true, val_every: 2000, workers: 4}   # batch 为全局 batch，DDP 时按卡均分
+train: {batch: 4, accum_steps: 1, iters: 30000, amp: true, val_every: 2000, workers: 4}   # BF16 不使用动态梯度缩放；batch 为全局 batch
 infer: {overlap: 0.25, p_min: 0.05, nms: center_distance, nms_radius_scale: 0.5}
 adapt:
   iters: ???                # 临床定位适配步数，仅在覆盖不足时使用

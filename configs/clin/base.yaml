@@ -1,6 +1,9 @@
 defaults: [../data.yaml]
+paths:
+  meta: ${paths.clinical_meta}
+  processed: ${paths.clinical_processed}
 slots:
-  extractor: /home/tanyuejun/LeCen/runs/D1_clinical/current  # 临床材料就绪后由队列生成，须包含 slots.json
+  extractor: null  # 由队列注入已完成 slot 提取的实际运行目录；手动运行需显式指定 slots.extractor
   k_max: 16
   cover_margin_mm: 5
 # 所有影像配置共用 G0 全局向量 g_global（CT-CLIP 缓存 token 均值，512 维）；slot 来自 slots.extractor（256 维）

@@ -20,7 +20,7 @@ from omegaconf import OmegaConf
 from common.hashing import extractor_hash, file_sha1, sel_hash
 from common.io import ROOT, load_config, read_json, read_npz, world_list, write_csv, write_json, write_npz
 from data.infer_dataset import InferCase
-from engine.infer_det import infer_case, load_detector
+from engine.infer_det import infer_case, load_detector, score_threshold_mask
 
 
 def extract(run, dev):
@@ -43,7 +43,7 @@ def extract(run, dev):
             continue
         case = InferCase(r.patient_id, vol_dir, token_dir, cfg.patch_zyx, cfg.infer.overlap)
         st = infer_case(model, cfg, case, dev)
-        k = st["keep"][st["dec_p"][st["keep"]] > p_min]
+        k = st["keep"][score_threshold_mask(st["dec_p"][st["keep"]], p_min)]
         write_npz(path, h=st["dec_h"][k], p=st["dec_p"][k], box_world=st["dec_box"][k],
                   raw_count=np.array(len(k)), **{k_: np.array(v) for k_, v in meta.items()})
     return cfg, ehash, out_dir

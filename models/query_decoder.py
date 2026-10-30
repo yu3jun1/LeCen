@@ -1,7 +1,7 @@
 """Query decoder：自注意力 / 局部邻域交叉注意力 / G 交叉注意力 / FFN / 逐层框细化。
 
 初始化：q_content = Linear(sample(P[L], ref_center)) + query_embed；q_pos = PE(to_world(ref_center))。
-注意力只取输出（need_weights=False），使用 SDPA 路径，避免已复现的 fp16 显式权重路径溢出。
+注意力只取输出（need_weights=False），使用 SDPA 路径，避免生成不需要的注意力权重。
 每层：参考框 detach 后用新中心重新计算 q_pos，供下一层的自注意力与 G 注意力使用。
 to_world：patch 体素坐标 → 撤销翻转 → 加 offset_vox → 预处理体积的 affine → 世界坐标。
 """

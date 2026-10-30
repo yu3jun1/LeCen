@@ -16,16 +16,18 @@ import pandas as pd
 from common.coords import affine_of, world_to_vox
 from common.io import ROOT, load_config, read_header, read_json, world_list, write_csv
 from data.crop_rules import retained, spacing_zyx
-from engine.infer_det import load_detector, predict, preds_frame
+from engine.infer_det import load_detector, predict, preds_frame, score_threshold_mask
 from eval.froc import SIZE_BINS, froc, scan_records
 
 STAGES = ["retained", "hm", "dec", "nms", "work"]
 
 
-def chain(stage, kept, hit, t_work):
+def chain(stage, kept, hit, t_work, *, inclusive=False):
+    """FROC uses an inclusive threshold; clinical p_min retains strict filtering."""
     dec = hit(stage["dec_box"][:, :3])
     k = stage["keep"]
-    raw = [kept, hit(stage["hm_xyz"]).any(), dec.any(), dec[k].any(), (dec[k] & (stage["dec_p"][k] > t_work)).any()]
+    work = score_threshold_mask(stage["dec_p"][k], t_work, inclusive=inclusive)
+    raw = [kept, hit(stage["hm_xyz"]).any(), dec.any(), dec[k].any(), (dec[k] & work).any()]
     return dict(zip(STAGES, np.cumprod(raw).astype(bool)))
 
 
@@ -36,7 +38,7 @@ def work_threshold(records, target_fp=1.0):
 
 def luna_chain(cfg, stages, records):
     ann = pd.read_csv(cfg.paths.luna16_annotations)
-    t = np.nextafter(work_threshold(records), -np.inf)
+    t = work_threshold(records)
     rows = []
     for sid, st in stages.items():
         h = read_header(Path(cfg.paths.processed) / "luna16" / f"{sid}.nii.gz")
@@ -45,7 +47,7 @@ def luna_chain(cfg, stages, records):
         for xyz, d in zip(a_s[["coordX", "coordY", "coordZ"]].to_numpy(float), a_s.diameter_mm):
             kept = retained(world_to_vox(xyz, a)[0], d / 2 / sp, 0, np.array(h.GetSize())[::-1])
             rows.append({"seriesuid": sid, "diameter_mm": d,
-                         **chain(st, kept, lambda c: ((c - xyz) ** 2).sum(-1) < (d / 2) ** 2, t)})
+                         **chain(st, kept, lambda c: ((c - xyz) ** 2).sum(-1) < (d / 2) ** 2, t, inclusive=True)})
     return pd.DataFrame(rows)
 
 

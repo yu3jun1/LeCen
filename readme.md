@@ -14,7 +14,7 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 ## 本机数据与权重路径
 
 `configs/data.yaml` 已对齐 `/data/tanyuejun` 下的现有数据。主配置使用永久目录；
-当前正式训练的 SSD 输入路径记录在各自 `runs/<D>/current/config.yaml` 中。
+当前正式训练的 SSD 输入路径记录在各自实际运行目录的 `config.yaml`；目录索引见 `runs/index.json` 中。
 命令行仍可用 `key=value` 覆盖路径。
 
 | 配置项 | 内容 |
@@ -24,24 +24,30 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 | `paths.luna16_annotations` / `paths.luna16_excluded` | 已填入现有 `annotations.csv` / `annotations_excluded.csv` |
 | `paths.luna16_evaluation_script` | `/home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py` |
 | `paths.raw_clinical` | `/data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom`，支持患者／检查／序列目录 |
-| `paths.clinical_series` | `null`：尚无已核验的治疗前基线清单；候选表单独登记在 `paths.clinical_series_candidates` |
-| `paths.clinical_table` | `/data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/clinical_acrin.csv`，临床原始字段汇总，结局尚未审定 |
-| `paths.processed` | `/data/tanyuejun/LUNA16/processed/LeCen` |
-| `paths.meta` | `/data/tanyuejun/LUNA16/meta/LeCen` |
+| `paths.clinical_series` | `ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/baseline/baseline_ct_verified.csv`，119例通过本轮时点与技术核验；建模取统一队列115例 |
+| `paths.clinical_table` | `ACRIN-NSCLC-FDG-PET/preparation/verified_v1_20261029/model_inputs/clinical_features_audited.csv`，审计后的OS与基线变量；原始临床源表完整保留 |
+| `paths.processed` | 检测：`/data/tanyuejun/LUNA16/processed/LeCen`；临床：`/data/tanyuejun/ACRIN-NSCLC-FDG-PET/processed/LeCen` |
+| `paths.meta` | 检测：`/data/tanyuejun/LUNA16/meta/LeCen`；生存配置使用 `paths.clinical_meta` 指向独立冻结的临床元数据 |
 | `paths.cache` | `/data/tanyuejun/_shared/cache/LeCen` |
 | `ctclip.checkpoint` | `/data/tanyuejun/_shared/weights/ctclip/CT-CLIP_v2.pt` |
 | `ctclip.token_layer` | `""`，使用 encoder 本身，与现有 12³ token 缓存一致 |
 | `configs/det/base.yaml: init_ckpt` | `/data/tanyuejun/_shared/checkpoints/LeCen/init.pt`，D1/D2 共用 |
 | `configs/det/D0a_monai.yaml: bundle_root` | `/data/tanyuejun/_shared/weights/monai_bundle/lung_nodule_ct_detection` |
-| `configs/clin/*.yaml: slots.extractor` | S2/S3/S5：`/home/tanyuejun/LeCen/runs/D1_clinical/current`；S4：`D2_clinical/current`；由临床队列后续生成。S0、S1 为 `null`，不使用检测器 |
+| `configs/clin/*.yaml: slots.extractor` | S2/S3/S5 由队列注入 D1 临床 slot 的实际运行目录，S4 注入 D2；手动运行需传 `slots.extractor`。S0、S1 不使用检测器 |
 
 预处理版本为 `lecen_pp_v1_ctclip_v2_mean12_20261028`，LUNA16 外扩为 10 mm，均与现有缓存一致。
 `~/.pylidcrc` 已指向 `/data/tanyuejun/LIDC-IDRI/dicom`。
 
-仍待核验的是临床语义配置：`clinical.columns` 中的结局／治疗列、`event_values`、`censor_values`、
-`covariates`，以及仅在覆盖不足时使用的 `adapt.iters`。这些不是可凭目录补全的路径。
-`<meta>/clinical_tumors.csv` 和 `splits_clin.csv` 当前仅有表头；临床提取器目录及 `slots.json` 尚未生成。
-候选 CT 清单不能直接当作合格队列，S0–S5 需待这些材料就绪后运行。
+本轮临床源审计已完成：原242位影像患者中238位OS可判定；119位通过基线时点、完整体积与Codex图像覆盖质控。
+与OS及原始资格记录取交集后，S0–S5统一冻结为115位，患者级train/val/test为69/23/23，分层种子2026。
+临床变量为年龄、性别、I1入组Zubrod与分期；实际治疗完成、剂量、后PET和随访信息不作为基线预测变量或影像资格条件。
+治疗为同一计划CRT类别，S3按方案不运行。日期验证分基线间隔匹配与独立CT/PT TimePointID直接匹配，两者都保留原始日期及证据；后PET只作审计。
+
+S0不依赖检测器；S1只需已核验原始CT的全局CT-CLIP缓存，不依赖肿瘤标注或slot。
+原始CT另导出到 `clinical_original/` 供标注复核，完整DICOM、原始临床表及未解决病例均保留。
+`clinical_tumors.csv` 当前只有表头，真实CT肿瘤标注仍待提供；本次Codex技术图审不等同放射科专家诊断或肿瘤真值。
+S2/S4/S5及临床定位适配、slot选择须待真实CT标注齐备。`adapt.iters`仍仅在覆盖不足时按共同协议设置。
+核验方法、来源、敏感性名单和运行状态见[临床核验报告](docs/reports/2026-10-29-acrin-clinical-verification.md)。
 
 ## 命令
 
@@ -50,36 +56,54 @@ Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask�
 python -m data.crop_rules --cfg configs/data.yaml --fit-on train      # 确定外扩量并写回配置
 python -m data.prep_luna16 --cfg configs/data.yaml --subset 0          # 逐个子集 0…9
 python -m data.build_instances --cfg configs/data.yaml
-python -m data.make_splits --cfg configs/data.yaml      # 同时确定临床合格队列：meta/clinical.csv、clinical_excluded.csv
-python -m data.prep_clinical --cfg configs/data.yaml    # 只处理合格队列中的基线 CT
+# python -m data.make_splits --cfg configs/data.yaml    # 从零重建备用；当前固定划分不重跑，临床由独立冻结流程管理
+# 临床当前由外部队列接续：本地原始CT→全局token；肿瘤标注齐备后再做肺裁剪/targets，不重复下载原CT
 python -m data.crop_rules --cfg configs/data.yaml --audit             # 事后保留率审计
 pytest tests/ -k "coords or sampling or lidc or ctclip or crop or eval_oracle or dataset"
 
-# 检测（当前 D1/D2 已在运行；初始化文件已存在，直接复用）
+# 检测（本轮 D1/D2 已完成30000步；以下为复现入口，共享初始化直接复用）
 # 仅在明确需要重新生成共享初始化时执行，会写入 cfg.init_ckpt：
 # python -m tools.make_init --cfg configs/det/D1.yaml --seed 1000
 python -m engine.train_det --cfg configs/det/D1.yaml                              # 单卡
 python -m engine.train_det --cfg configs/det/D2.yaml
 torchrun --nproc_per_node=<GPU 数> -m engine.train_det --cfg configs/det/D1.yaml   # DDP
-python -m engine.infer_det --run runs/D1/current --split val          # 训练完成后确定 p_min
-python -m engine.infer_det --run runs/D1/current --split test --final
-python -m eval.froc --run runs/D1/current --split test
-python -m eval.compare --a runs/D1/current --b runs/D2/current --metrics cpm,sens1fp_3to6 --bootstrap 2000
-python -m eval.shuffle_h --run runs/D1/current
-python -m eval.recall_chain --run runs/D1/current --split val
-# D0a 当前目录为 runs/D0a/current；MONAI 训练与推理由外部运行器和自动队列接续。
+python -m engine.infer_det --run runs/D1/20261029-122606 --split val          # 训练完成后确定 p_min
+python -m engine.infer_det --run runs/D1/20261029-122606 --split test --final
+python -m eval.froc --run runs/D1/20261029-122606 --split test
+python -m eval.compare --a runs/D1/20261029-122606 --b runs/D2/20261029-120947 --metrics cpm,sens1fp_3to6 --bootstrap 2000
+python -m eval.shuffle_h --run runs/D1/20261029-122606
+python -m eval.recall_chain --run runs/D1/20261029-122606 --split val
+# D0a 当前目录为 runs/D0a/20261029-055704-resume-e134；MONAI 训练与推理由外部运行器和自动队列接续。
 # 推理产物生成后，可手动转换 MONAI 输出（正式测试只登记一次）：
-python -m engine.infer_det --run runs/D0a/current --split test --final --monai-json runs/D0a/current/monai_test_project_format.json
+python -m engine.infer_det --run runs/D0a/20261029-055704-resume-e134 --split test --final --monai-json runs/D0a/20261029-055704-resume-e134/monai_test_project_format.json
 
-# 临床
-python -m eval.recall_chain --run runs/D1_clinical/current --split val --cohort clinical
-python -m engine.adapt_clinical --extractor runs/D1_clinical/current adapt.iters=<步数>   # 仅在覆盖不足时；也可用 torchrun 启动
-python -m engine.extract_slots --extractor runs/D1_clinical/current
-python -m engine.extract_slots --extractor runs/D2_clinical/current
-python -m engine.train_surv --cfg configs/clin/S5.yaml
-python -m eval.surv_eval --run runs/S5/current --final
-python -m eval.compare --a runs/S5/current --b runs/S2/current --metrics cindex_ipcw --bootstrap 2000
+# 临床：以下为复现入口；当前正式任务由自动队列接续
+# D1_CLINICAL_RUN、D2_CLINICAL_RUN、S5_RUN、S2_RUN 应填 runs/index.json 中已登记的实际路径
+python -m engine.train_surv --cfg configs/clin/S0.yaml
+python -m engine.train_surv --cfg configs/clin/S1.yaml
+python -m eval.recall_chain --run ${D1_CLINICAL_RUN} --split val --cohort clinical
+python -m engine.adapt_clinical --extractor ${D1_CLINICAL_RUN} adapt.iters=<步数>   # 仅在覆盖不足时；也可用 torchrun 启动
+python -m engine.extract_slots --extractor ${D1_CLINICAL_RUN}
+python -m engine.extract_slots --extractor ${D2_CLINICAL_RUN}
+python -m engine.train_surv --cfg configs/clin/S5.yaml slots.extractor="${D1_CLINICAL_RUN}"
+python -m eval.surv_eval --run ${S5_RUN} --final
+python -m eval.compare --a ${S5_RUN} --b ${S2_RUN} --metrics cindex_ipcw --bootstrap 2000
 ```
+
+## 运行目录与自动接续
+
+每个实验使用 `runs/<实验名>/<时间戳>/`，不建立 `current` 目录或别名；实际路径和状态登记在 `runs/index.json`。
+异常结束且已废弃的旧运行已从 runs 清除，故障复现所需的日志、配置、源码和少量现场权重单独保存在 `/data/tanyuejun/_management/LeCen/runs_cleanup_20261029/`。
+正在进行的 D1/D2 保留，完成的 D0a/S0/S1 保留。D0a 以最后完整运行 `20261029-055704-resume-e134` 为准，共200epoch，验证集选中的 `checkpoints/model.pt` 为epoch165；`last_training.pt` 为epoch200状态。
+
+自动队列每180秒检查数据与依赖，准备就绪后并行接续；只使用GPU1–7，优先2–7，GPU0禁用。
+D1/D2完成后先分析训练更新、验证曲线及定位信息丢失链，再判断是否需要修复或延长训练。需要重训时由本会话自动接续；共同逻辑改动保持共享初始化及比较协议。
+最终测试和依赖检测器的临床任务等待此次分析完成；测试集仅用于最终报告，不参与选择重训方案。
+真实CT肿瘤标注尚缺时，相关临床任务保持等待，不生成伪造真值。
+
+本轮D1/D2均完成连续30000次有限更新；验证集CPM选择的最佳检查点分别为28000、20000步，完整三万步权重保留在各自`milestones/step_030000/`。
+完成后的验证复核修复了float32概率与float64阈值比较的同分边界：`p_min`仍严格大于，LUNA工作点按FROC阈值包含等分候选，slot过滤使用同一严格比较函数。该修复不改变已训练的参数。
+最佳与末步权重已各自重做89例验证；四者FP覆盖均达8 FP/scan，CPM与灵敏度排序不变，最佳权重的自实现与官方CPM一致。当前没有欠训或训练故障的确证，本轮保留30k预算并继续最终测试；不能以D1弱于D2为理由要求重训至结论反转。
 
 ## 生存配置
 
@@ -110,12 +134,18 @@ decoder 的三处注意力使用 `need_weights=False`。真实 D1/D2 失败现�
 FP16 分数先溢出，随后 NaN 传播到框与匹配矩阵；仅限制尺寸不足以修复这两次失败。
 复现和分项验证见 [数值修复验证报告](docs/reports/2026-10-28-numerical-fix-verification.md)。
 
-热图头的共享 `Conv3d → GroupNorm → ReLU` 使用 FP32，之后的分类和尺寸输出头继续使用 AMP。
-D1 step 15441 与 D2 step 10457 的现场确认该卷积先超过 FP16 上限，再由 GroupNorm 传播 NaN；
-复现、回归与多卡验证见 [热图卷积溢出修复报告](docs/reports/2026-10-29-heatmap-overflow-fix.md)。
+检测训练、验证和临床定位适配直接使用 BF16 autocast；热图共享卷积也使用该路径。
+不再使用 GradScaler、loss scale 或跳步逻辑，也不保留 FP16 配置回退。
+梯度范数非有限时，在 AdamW 更新前报错并保存模型、优化器、调度器、梯度与当前 batch；不替换 NaN、不跳过样本。
+D1 的恢复梯度检查使用未缩放的实际梯度。检测头已经输出 FP32 的 exist_logit 和 box，推理不重复转换概率类型。
 
-可选 `train.failure_dir` 用于保存前向失败时的模型、优化器、scaler 和当前 batch。
-该现场保存功能不提供自动恢复入口；普通 `best.pt` / `last.pt` 仍只保存模型、recovery 和 step。
+本轮 D1/D2 均从相同 `init.pt` 开始：全局 batch 4、30000 次更新、每 2000 步验证，余弦学习率在第 30000 步衰减完成。
+`pycox==0.3.0` 已安装在本机运行环境中，核心 PyTorch/NumPy/Pandas 版本保持不变。
+跳步审计、精简方案及验证见 [AMP 缩放故障报告](docs/reports/2026-10-29-amp-scale-underflow.md)。
+早期热图 FP16 失败证据保留在 [历史热图报告](docs/reports/2026-10-29-heatmap-overflow-fix.md)。
+
+可选 `train.failure_dir` 用于前向、反向及更新前检查失败的现场保存。
+普通 `best.pt` / `last.pt` 仍只保存模型、recovery 和 step，不能用作完整状态续训。
 
 - 数组轴序 (Z, Y, X)；物理坐标为 SimpleITK 世界坐标 (x, y, z)，单位 mm。
 - 模型内部框：中心 (cz, cy, cx) + 尺寸 (dz, dy, dx)，单位为当前 patch 体素；与世界坐标、MONAI 框格式的转换只在 `common/boxes.py` 与 `common/coords.py`；所有 `grid_sample` 坐标只由 `common/sampling.py` 生成。

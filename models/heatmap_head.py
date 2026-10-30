@@ -18,12 +18,7 @@ class HeatmapHead(nn.Module):
         nn.init.constant_(self.hm.bias, -math.log((1 - prior) / prior))
 
     def forward(self, p):
-        # FPN features can be finite while this unnormalised 3x3x3 convolution
-        # exceeds FP16's 65504 limit. Keep the convolution AND normalization in
-        # FP32 so GroupNorm never receives an already-overflowed half tensor.
-        # The small, post-normalization output heads still use the caller's AMP.
-        with torch.autocast(device_type=p.device.type, enabled=False):
-            y = self.conv(p.float())
+        y = self.conv(p)
         return self.hm(y), self.size(y)
 
     @staticmethod

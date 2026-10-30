@@ -21,7 +21,7 @@ from common.hashing import file_sha1
 from common.io import append_csv, make_run
 from common.seed import set_determinism
 from data.det_dataset import DetPatchDataset, loader, luna_dataset, to_device
-from engine.train_det import TrainStep, build_optim, optimizer_step, save
+from engine.train_det import TrainStep, build_optim, optimizer_step, save, save_failure
 from models.detector import Detector
 from models.recovery import RecoveryDecoder
 
@@ -46,31 +46,33 @@ def main(src, overrides):
     step_fn = TrainStep(model, recovery, cfg, patch).train()
     ddp = wrap(step_fn, dev)
     params = list(step_fn.parameters())
-    optimizer, scheduler, scaler = build_optim(cfg, model, list(recovery.parameters()) if recovery else [])
+    optimizer, scheduler = build_optim(cfg, model, list(recovery.parameters()) if recovery else [])
     p = Path(cfg.paths.processed)
     splits = pd.read_csv(Path(cfg.paths.meta) / "splits_clin.csv", dtype={"patient_id": str})
     clin = DetPatchDataset(cfg, splits[splits.split == "train"].patient_id, p / "clinical", None, p / "clinical_targets", True)
     clin_batches = loader(cfg, clin, cfg.seeds.data)
     luna_batches = loader(cfg, luna_dataset(cfg, "train", augment=True), cfg.seeds.data)
-    step, skipped = 0, 0
+    step = 0
     while step < cfg.train.iters:
         bc, bl = to_device(next(clin_batches), dev), to_device(next(luna_batches), dev)
-        with torch.autocast("cuda", dtype=torch.float16, enabled=cfg.train.amp):
-            loss, [(_, log_c, _, _), (_, log_l, _, _)] = ddp([(bc, True), (bl, False)])
-        scaler.scale(loss).backward()
-        stepped, grad_norm = optimizer_step(params, optimizer, scaler, scheduler, cfg.optim.clip_norm)
-        if not stepped:
-            skipped += 1
-            continue
+        try:
+            with torch.autocast("cuda", dtype=torch.bfloat16, enabled=cfg.train.amp):
+                loss, [(_, log_c, _, _), (_, log_l, _, _)] = ddp([(bc, True), (bl, False)])
+            loss.backward()
+            grad_norm = optimizer_step(params, optimizer, scheduler, cfg.optim.clip_norm)
+        except (ValueError, RuntimeError) as exc:
+            save_failure(cfg, model, recovery, optimizer, scheduler, {"clinical": bc, "luna": bl}, step, exc)
+            raise
         step += 1
         log = {**{f"clin_{k}": v for k, v in reduce_log(log_c, dev).items()},
                **{f"luna_{k}": v for k, v in reduce_log(log_l, dev).items()}}
         if is_main():
-            append_csv(run / "train_log.csv", {"step": step, **log, "grad_norm": grad_norm, "skipped": skipped})
+            append_csv(run / "train_log.csv", {"step": step, **log, "grad_norm": grad_norm})
     if is_main():
         save(run / "checkpoints" / "best.pt", model, recovery, step)
         shutil.copy(src / "p_min.json", run / "p_min.json")
         print(run)
+    return run
 
 
 if __name__ == "__main__":

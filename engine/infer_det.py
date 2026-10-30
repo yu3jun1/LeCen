@@ -35,7 +35,7 @@ def infer_case(model, cfg, case, dev):
     hm_xyz, boxes, ps, hs = [], [], [], []
     for i in range(0, len(case.starts), cfg.train.batch):
         b = to_device(case.batch(case.starts[i:i + cfg.train.batch]), dev)
-        with torch.autocast("cuda", dtype=torch.float16, enabled=cfg.train.amp):
+        with torch.autocast("cuda", dtype=torch.bfloat16, enabled=cfg.train.amp):
             out = model(b["image"], b["tokens"], b["token_xyz"], b)
         last = out["layers"][-1]
         off, flip = b["offset_vox"][:, None], b["flip"][:, None]
@@ -68,22 +68,34 @@ def predict(model, cfg, ids, vol_dir, dev):
     return {cid: infer_case(model, cfg, InferCase(cid, vol_dir, token_dir, cfg.patch_zyx, cfg.infer.overlap), dev) for cid in ids}
 
 
+def score_threshold_mask(scores, threshold, *, inclusive=False):
+    """Compare in float64 so NumPy cannot round a scalar threshold to float32.
+
+    Strict p > p_min filtering and inclusive FROC thresholds use the same
+    precision, including repeated scores originating from BF16 inference.
+    """
+    scores = np.asarray(scores, dtype=np.float64)
+    threshold = np.float64(threshold)
+    return scores >= threshold if inclusive else scores > threshold
+
+
 def preds_frame(stages, p_min):
     rows = []
     for sid, s in stages.items():
-        k = s["keep"][s["dec_p"][s["keep"]] > p_min]
+        k = s["keep"][score_threshold_mask(s["dec_p"][s["keep"]], p_min)]
         rows += [(sid, *s["dec_box"][i, :3], s["dec_p"][i]) for i in k]
     return pd.DataFrame(rows, columns=["seriesuid", "coordX", "coordY", "coordZ", "probability"])
 
 
 def fit_p_min(stages, cfg, p_min, target_fp=8.0):
-    """验证集：p > p_min 的候选若达不到 target_fp FP/scan，把 p_min 降到恰好达到的位置（候选不足时为 0）。"""
+    """验证集：若 p > p_min 达不到 target_fp FP/scan，降低阈值以包含目标分数及其全部同分候选（候选不足时为 0）。"""
     rec = scan_records(cfg, preds_frame(stages, 0.0), list(stages))
-    fp = np.sort(np.concatenate([r["fp"] for r in rec.values()]))[::-1]
+    fp = np.sort(np.asarray(np.concatenate([r["fp"] for r in rec.values()]), dtype=np.float64))[::-1]
     n = int(np.ceil(target_fp * len(stages)))
-    if (fp > p_min).sum() >= n:
+    if score_threshold_mask(fp, p_min).sum() >= n:
         return p_min
-    return float(np.nextafter(fp[n - 1], 0)) if len(fp) >= n else 0.0
+    # The strict filter must include the target score and every tied candidate.
+    return float(np.nextafter(fp[n - 1], -np.inf)) if len(fp) >= n else 0.0
 
 
 def monai_preds(path):

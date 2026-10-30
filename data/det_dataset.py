@@ -168,7 +168,9 @@ def luna_dataset(cfg, split, augment):
 
 
 def loader(cfg, ds, seed):
+    # Workers start independently of the parent CUDA and CPU thread state.
     pos = [k for k, cid in enumerate(ds.ids) if read_json(Path(ds.dirs[2]) / f"{cid}.json")["instances"]]
     return iter(torch.utils.data.DataLoader(
         ds, batch_size=cfg.train.batch // world(), sampler=PatchSampler(len(ds.ids), pos, cfg.pos_fraction, seed, rank(), world()),
-        num_workers=cfg.train.workers, collate_fn=collate, pin_memory=True, persistent_workers=cfg.train.workers > 0))
+        num_workers=cfg.train.workers, collate_fn=collate, pin_memory=True, persistent_workers=cfg.train.workers > 0,
+        multiprocessing_context="spawn" if cfg.train.workers > 0 else None))
