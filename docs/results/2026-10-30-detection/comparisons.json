@@ -1,0 +1,86 @@
+{
+  "definition": "a minus b; paired patient bootstrap, 2000 resamples. diff_mean is the bootstrap mean, not the observed point difference.",
+  "results": {
+    "D1_vs_D2": {
+      "a": "/home/tanyuejun/LeCen_workspace/project/runs/D1/20261029-122606",
+      "b": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947",
+      "n_boot": 2000,
+      "results": {
+        "cpm": {
+          "diff_mean": -0.040483970357398764,
+          "ci95": [
+            -0.07619198312236293,
+            -0.00645547030080924
+          ],
+          "verdict": "提示性能下降"
+        },
+        "sens1fp_3to6": {
+          "diff_mean": -0.10236771675451832,
+          "ci95": [
+            -0.19102318909873298,
+            -0.018340358707331233
+          ],
+          "verdict": "提示性能下降"
+        }
+      },
+      "observed_difference": {
+        "cpm": -0.0412905480170056,
+        "sens1fp_3to6": -0.09999999999999998
+      }
+    },
+    "D1_vs_D0a": {
+      "a": "/home/tanyuejun/LeCen_workspace/project/runs/D1/20261029-122606",
+      "b": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134",
+      "n_boot": 2000,
+      "results": {
+        "cpm": {
+          "diff_mean": -0.1505870334204213,
+          "ci95": [
+            -0.19490659900323773,
+            -0.10553610348438969
+          ],
+          "verdict": "提示性能下降"
+        },
+        "sens1fp_3to6": {
+          "diff_mean": -0.28256518521789875,
+          "ci95": [
+            -0.4,
+            -0.1785591976516634
+          ],
+          "verdict": "提示性能下降"
+        }
+      },
+      "observed_difference": {
+        "cpm": -0.14798206278026926,
+        "sens1fp_3to6": -0.2777777777777778
+      }
+    },
+    "D2_vs_D0a": {
+      "a": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947",
+      "b": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134",
+      "n_boot": 2000,
+      "results": {
+        "cpm": {
+          "diff_mean": -0.11010306306302249,
+          "ci95": [
+            -0.14686317116101397,
+            -0.07637705734859221
+          ],
+          "verdict": "提示性能下降"
+        },
+        "sens1fp_3to6": {
+          "diff_mean": -0.18019746846338047,
+          "ci95": [
+            -0.2988793103448277,
+            -0.07499415887850477
+          ],
+          "verdict": "提示性能下降"
+        }
+      },
+      "observed_difference": {
+        "cpm": -0.10669151476326366,
+        "sens1fp_3to6": -0.1777777777777778
+      }
+    }
+  }
+}

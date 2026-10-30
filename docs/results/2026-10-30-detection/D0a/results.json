@@ -1,0 +1,944 @@
+{
+  "schema_version": 1,
+  "experiment": "D0a",
+  "run_id": "20261029-055704-resume-e134",
+  "status": "complete",
+  "local_run_directory": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134",
+  "split_protocol": "Fixed LUNA16 split; a single training seed/protocol per model; patient-level bootstrap 2000",
+  "checkpoint_selection": {
+    "criterion": "MONAI val_coco (mean of returned COCO metrics; not CPM or mAP alone)",
+    "epoch": 165,
+    "checkpoint_file": "checkpoints/model.pt",
+    "validation_at_selection": {
+      "epoch": 165,
+      "val_coco": 0.8434767126627225,
+      "cases": 89,
+      "mAP_IoU_0.10_0.50_0.05_MaxDet_100": 0.7055229585621879,
+      "nodule_mAP_IoU_0.10_0.50_0.05_MaxDet_100": 0.7055229585621879,
+      "AP_IoU_0.10_MaxDet_100": 0.7104259156944728,
+      "nodule_AP_IoU_0.10_MaxDet_100": 0.7104259156944728,
+      "mAR_IoU_0.10_0.50_0.05_MaxDet_100": 0.9759759836726718,
+      "nodule_mAR_IoU_0.10_0.50_0.05_MaxDet_100": 0.9759759836726718,
+      "AR_IoU_0.10_MaxDet_100": 0.9819819927215576,
+      "nodule_AR_IoU_0.10_MaxDet_100": 0.9819819927215576
+    }
+  },
+  "training": {
+    "epochs": 200,
+    "iterations": 31200,
+    "optimizer_updates": 31186,
+    "amp_skipped_updates": 14,
+    "precision": "FP16 AMP with GradScaler",
+    "global_batch": 16,
+    "world_size": 4,
+    "resume_after_epoch": 134,
+    "exact_rng_resume": false,
+    "ddp_parameters": {
+      "world_size": 4,
+      "global_batch": 16,
+      "patches_per_rank": 4,
+      "crops_per_case_per_epoch": 4,
+      "train_cases": 623,
+      "validation_cases": 89,
+      "steps_per_epoch": 156,
+      "max_epochs": 200,
+      "base_lr": 0.01,
+      "warmup_epochs": 7,
+      "post_warmup_step_size": 107,
+      "lr_gamma": 0.1,
+      "normalization": "SyncBatchNorm",
+      "loss_reduction": "global_sampled_anchor_mean",
+      "validation": "gather_all_cases_then_official_MONAI_COCO",
+      "pretrained": false,
+      "seed": 1000,
+      "preflight": false,
+      "sampler_padding_groups": 1,
+      "source_sha256": "00df31a1d7d8ce7b380e25822606f5448a8aecd03709119d270cf08ed8389b4e",
+      "resume_epoch": 134,
+      "exact_rng_resume": false,
+      "resume_probe_updates": 0
+    },
+    "completion": {
+      "max_epochs": 200,
+      "iterations": 31200,
+      "optimizer_steps": 31186,
+      "preflight": false,
+      "global_batch": 16,
+      "world_size": 4
+    },
+    "monai_bundle_template": {
+      "imports": [
+        "$import glob",
+        "$import os",
+        "$import numpy",
+        "$import d0a_ddp"
+      ],
+      "bundle_root": "/data/tanyuejun/_shared/weights/monai_bundle/lung_nodule_ct_detection",
+      "ckpt_dir": "/home/tanyuejun/LeCen/runs/D0a/20261029-055704-resume-e134/checkpoints",
+      "output_dir": "/home/tanyuejun/LeCen/runs/D0a/20261029-055704-resume-e134/tensorboard",
+      "data_list_file_path": "/data/tanyuejun/LUNA16/meta/LeCen/monai_datalist_det.json",
+      "dataset_dir": "/tmp/tanyuejun_lecen_ssd_20261028/processed/luna16",
+      "train_datalist": "$monai.data.load_decathlon_datalist(@data_list_file_path, is_segmentation=True, data_list_key='training', base_dir=@dataset_dir)",
+      "device": "cuda:0",
+      "epochs": 200,
+      "val_interval": 5,
+      "learning_rate": 0.01,
+      "amp": true,
+      "batch_size": 4,
+      "patch_size": [
+        192,
+        192,
+        80
+      ],
+      "val_patch_size": [
+        512,
+        512,
+        192
+      ],
+      "anchor_generator": {
+        "_target_": "monai.apps.detection.utils.anchor_utils.AnchorGeneratorWithAnchorShape",
+        "feature_map_scales": [
+          1,
+          2,
+          4
+        ],
+        "base_anchor_shapes": [
+          [
+            6,
+            8,
+            4
+          ],
+          [
+            8,
+            6,
+            5
+          ],
+          [
+            10,
+            10,
+            6
+          ]
+        ]
+      },
+      "backbone": "$monai.networks.nets.resnet.resnet50(spatial_dims=3,n_input_channels=1,conv1_t_stride=[2,2,1],conv1_t_size=[7,7,7])",
+      "feature_extractor": "$monai.apps.detection.networks.retinanet_network.resnet_fpn_feature_extractor(@backbone,3,False,[1,2],None)",
+      "network_def": {
+        "_target_": "RetinaNet",
+        "spatial_dims": 3,
+        "num_classes": 1,
+        "num_anchors": 3,
+        "feature_extractor": "@feature_extractor",
+        "size_divisible": [
+          16,
+          16,
+          8
+        ]
+      },
+      "network": "$@network_def.to(@device)",
+      "detector": {
+        "_target_": "d0a_ddp.DistributedDetector",
+        "network": "@network",
+        "anchor_generator": "@anchor_generator",
+        "debug": false
+      },
+      "detector_ops": [
+        "$@detector.set_atss_matcher(num_candidates=4, center_in_gt=False)",
+        "$@detector.set_hard_negative_sampler(batch_size_per_image=64,positive_fraction=0.3,pool_size=20,min_neg=16)",
+        "$@detector.set_target_keys(box_key='box', label_key='label')",
+        "$@detector.set_box_selector_parameters(score_thresh=0.02,topk_candidates_per_level=1000,nms_thresh=0.22,detections_per_img=300)",
+        "$@detector.set_sliding_window_inferer(roi_size=@val_patch_size,overlap=0.25,sw_batch_size=1,mode='constant',device='cpu')"
+      ],
+      "optimizer": {
+        "_target_": "torch.optim.SGD",
+        "params": "$@detector.network.parameters()",
+        "lr": "@learning_rate",
+        "momentum": 0.9,
+        "weight_decay": 3e-05,
+        "nesterov": true
+      },
+      "after_scheduler": {
+        "_target_": "torch.optim.lr_scheduler.StepLR",
+        "optimizer": "@optimizer",
+        "step_size": 107,
+        "gamma": 0.1
+      },
+      "lr_scheduler": {
+        "_target_": "scripts.warmup_scheduler.GradualWarmupScheduler",
+        "optimizer": "@optimizer",
+        "multiplier": 1,
+        "total_epoch": 7,
+        "after_scheduler": "@after_scheduler"
+      },
+      "train": {
+        "preprocessing_transforms": [
+          {
+            "_target_": "LoadImaged",
+            "keys": "image"
+          },
+          {
+            "_target_": "EnsureChannelFirstd",
+            "keys": "image"
+          },
+          {
+            "_target_": "Lambdad",
+            "keys": "box",
+            "func": "$d0a_ddp.reshape_box"
+          },
+          {
+            "_target_": "EnsureTyped",
+            "keys": [
+              "image",
+              "box"
+            ]
+          },
+          {
+            "_target_": "EnsureTyped",
+            "keys": "label",
+            "dtype": "$torch.long"
+          },
+          {
+            "_target_": "Orientationd",
+            "keys": "image",
+            "axcodes": "RAS"
+          },
+          {
+            "_target_": "ScaleIntensityRanged",
+            "keys": "image",
+            "a_min": -1000.0,
+            "a_max": 400.0,
+            "b_min": 0.0,
+            "b_max": 1.0,
+            "clip": true
+          },
+          {
+            "_target_": "ConvertBoxToStandardModed",
+            "box_keys": "box",
+            "mode": "cccwhd"
+          },
+          {
+            "_target_": "AffineBoxToImageCoordinated",
+            "box_keys": "box",
+            "box_ref_image_keys": "image",
+            "affine_lps_to_ras": true
+          }
+        ],
+        "random_transforms": [
+          {
+            "_target_": "RandCropBoxByPosNegLabeld",
+            "image_keys": "image",
+            "box_keys": "box",
+            "label_keys": "label",
+            "spatial_size": "@patch_size",
+            "whole_box": true,
+            "num_samples": "@batch_size",
+            "pos": 1,
+            "neg": 1
+          },
+          {
+            "_target_": "RandZoomBoxd",
+            "image_keys": "image",
+            "box_keys": "box",
+            "label_keys": "label",
+            "box_ref_image_keys": "image",
+            "prob": 0.2,
+            "min_zoom": 0.7,
+            "max_zoom": 1.4,
+            "padding_mode": "constant",
+            "keep_size": true
+          },
+          {
+            "_target_": "ClipBoxToImaged",
+            "box_keys": "box",
+            "label_keys": "label",
+            "box_ref_image_keys": "image",
+            "remove_empty": true
+          },
+          {
+            "_target_": "RandFlipBoxd",
+            "image_keys": "image",
+            "box_keys": "box",
+            "box_ref_image_keys": "image",
+            "prob": 0.5,
+            "spatial_axis": 0
+          },
+          {
+            "_target_": "RandFlipBoxd",
+            "image_keys": "image",
+            "box_keys": "box",
+            "box_ref_image_keys": "image",
+            "prob": 0.5,
+            "spatial_axis": 1
+          },
+          {
+            "_target_": "RandFlipBoxd",
+            "image_keys": "image",
+            "box_keys": "box",
+            "box_ref_image_keys": "image",
+            "prob": 0.5,
+            "spatial_axis": 2
+          },
+          {
+            "_target_": "RandRotateBox90d",
+            "image_keys": "image",
+            "box_keys": "box",
+            "box_ref_image_keys": "image",
+            "prob": 0.75,
+            "max_k": 3,
+            "spatial_axes": [
+              0,
+              1
+            ]
+          },
+          {
+            "_target_": "BoxToMaskd",
+            "box_keys": "box",
+            "label_keys": "label",
+            "box_mask_keys": "box_mask",
+            "box_ref_image_keys": "image",
+            "min_fg_label": 0,
+            "ellipse_mask": true
+          },
+          {
+            "_target_": "RandRotated",
+            "keys": [
+              "image",
+              "box_mask"
+            ],
+            "mode": [
+              "nearest",
+              "nearest"
+            ],
+            "prob": 0.2,
+            "range_x": 0.5236,
+            "range_y": 0.5236,
+            "range_z": 0.5236,
+            "keep_size": true,
+            "padding_mode": "zeros"
+          },
+          {
+            "_target_": "MaskToBoxd",
+            "box_keys": [
+              "box"
+            ],
+            "label_keys": [
+              "label"
+            ],
+            "box_mask_keys": [
+              "box_mask"
+            ],
+            "min_fg_label": 0
+          },
+          {
+            "_target_": "DeleteItemsd",
+            "keys": "box_mask"
+          },
+          {
+            "_target_": "RandGaussianNoised",
+            "keys": "image",
+            "prob": 0.1,
+            "mean": 0.0,
+            "std": 0.1
+          },
+          {
+            "_target_": "RandGaussianSmoothd",
+            "keys": "image",
+            "prob": 0.1,
+            "sigma_x": [
+              0.5,
+              1.0
+            ],
+            "sigma_y": [
+              0.5,
+              1.0
+            ],
+            "sigma_z": [
+              0.5,
+              1.0
+            ]
+          },
+          {
+            "_target_": "RandScaleIntensityd",
+            "keys": "image",
+            "factors": 0.25,
+            "prob": 0.15
+          },
+          {
+            "_target_": "RandShiftIntensityd",
+            "keys": "image",
+            "offsets": 0.1,
+            "prob": 0.15
+          },
+          {
+            "_target_": "RandAdjustContrastd",
+            "keys": "image",
+            "prob": 0.3,
+            "gamma": [
+              0.7,
+              1.5
+            ]
+          }
+        ],
+        "final_transforms": [
+          {
+            "_target_": "EnsureTyped",
+            "keys": [
+              "image",
+              "box"
+            ]
+          },
+          {
+            "_target_": "EnsureTyped",
+            "keys": "label",
+            "dtype": "$torch.long"
+          },
+          {
+            "_target_": "ToTensord",
+            "keys": [
+              "image",
+              "box",
+              "label"
+            ]
+          }
+        ],
+        "preprocessing": {
+          "_target_": "Compose",
+          "transforms": "$@train::preprocessing_transforms + @train::random_transforms + @train::final_transforms"
+        },
+        "dataset": {
+          "_target_": "Dataset",
+          "data": "@train_datalist",
+          "transform": "@train::preprocessing"
+        },
+        "dataloader": {
+          "_target_": "DataLoader",
+          "dataset": "@train::dataset",
+          "batch_size": 1,
+          "shuffle": true,
+          "num_workers": 2,
+          "collate_fn": "$monai.data.utils.no_collation",
+          "prefetch_factor": 1,
+          "persistent_workers": true,
+          "pin_memory": true
+        },
+        "handlers": [
+          {
+            "_target_": "LrScheduleHandler",
+            "lr_scheduler": "@lr_scheduler",
+            "print_lr": true
+          },
+          {
+            "_target_": "ValidationHandler",
+            "validator": "@validate::evaluator",
+            "epoch_level": true,
+            "interval": "@val_interval"
+          }
+        ],
+        "trainer": {
+          "_target_": "scripts.trainer.DetectionTrainer",
+          "_requires_": "@detector_ops",
+          "max_epochs": "@epochs",
+          "device": "@device",
+          "train_data_loader": "@train::dataloader",
+          "detector": "@detector",
+          "optimizer": "@optimizer",
+          "train_handlers": "@train::handlers",
+          "amp": "@amp",
+          "non_blocking": true
+        }
+      },
+      "validate": {
+        "preprocessing": {
+          "_target_": "Compose",
+          "transforms": "$@train::preprocessing_transforms + @train::final_transforms"
+        },
+        "dataset": {
+          "_target_": "Dataset",
+          "data": "@val_datalist",
+          "transform": "@validate::preprocessing"
+        },
+        "dataloader": {
+          "_target_": "DataLoader",
+          "dataset": "@validate::dataset",
+          "batch_size": 1,
+          "shuffle": false,
+          "num_workers": 1,
+          "collate_fn": "$monai.data.utils.no_collation",
+          "prefetch_factor": 1,
+          "persistent_workers": true,
+          "pin_memory": true
+        },
+        "inferer": {
+          "_target_": "scripts.detection_inferer.RetinaNetInferer",
+          "detector": "@detector"
+        },
+        "handlers": [
+          {
+            "_target_": "CheckpointSaver",
+            "save_dir": "@ckpt_dir",
+            "save_dict": {
+              "model": "@network"
+            },
+            "save_key_metric": true,
+            "key_metric_filename": "model.pt"
+          }
+        ],
+        "key_metric": {
+          "val_coco": {
+            "_target_": "scripts.cocometric_ignite.IgniteCocoMetric",
+            "coco_metric_monai": "$monai.apps.detection.metrics.coco.COCOMetric(classes=['nodule'], iou_list=[0.1], max_detection=[100])",
+            "output_transform": "$monai.handlers.from_engine(['pred', 'label'])",
+            "box_key": "box",
+            "label_key": "label",
+            "pred_score_key": "label_scores",
+            "reduce_scalar": true
+          }
+        },
+        "evaluator": {
+          "_target_": "scripts.evaluator.DetectionEvaluator",
+          "_requires_": "@detector_ops",
+          "device": "@device",
+          "val_data_loader": "@validate::dataloader",
+          "network": "@network",
+          "inferer": "@validate::inferer",
+          "key_val_metric": "@validate::key_metric",
+          "val_handlers": "@validate::handlers",
+          "amp": "@amp"
+        }
+      },
+      "initialize": [
+        "$monai.utils.set_determinism(seed=1000)"
+      ],
+      "run": [
+        "$@train::trainer.run()"
+      ],
+      "val_datalist": "$monai.data.load_decathlon_datalist(@data_list_file_path, is_segmentation=True, data_list_key='validation', base_dir=@dataset_dir)"
+    },
+    "configuration_note": "MONAI bundle template plus explicit ddp_parameters overrides; the completed run used 200 epochs, world4/globalbatch16 and resumed after epoch134."
+  },
+  "metrics_test": {
+    "self": {
+      "cpm": 0.9378603459320949,
+      "sens@0.125": 0.820627802690583,
+      "sens@0.25": 0.9013452914798207,
+      "sens@0.5": 0.9237668161434978,
+      "sens@1": 0.9506726457399103,
+      "sens@2": 0.9820627802690582,
+      "sens@4": 0.9910313901345291,
+      "sens@8": 0.9955156950672646,
+      "sens1fp_3to6": 0.9222222222222223,
+      "sens1fp_6to10": 0.9411764705882353,
+      "sens1fp_10plus": 1.0,
+      "sens4fp_3to6": 1.0,
+      "sens4fp_6to10": 0.9705882352941176,
+      "sens4fp_10plus": 1.0
+    },
+    "ci95": {
+      "cpm": [
+        0.9030169289531566,
+        0.9682579564489112
+      ],
+      "sens@0.125": [
+        0.7405558238003268,
+        0.9102578475336323
+      ],
+      "sens@0.25": [
+        0.8270382988721804,
+        0.9523809523809523
+      ],
+      "sens@0.5": [
+        0.8849050570641479,
+        0.9620853080568721
+      ],
+      "sens@1": [
+        0.9112149532710281,
+        0.9854403939507095
+      ],
+      "sens@2": [
+        0.9613728722191122,
+        0.9958681937217291
+      ],
+      "sens@4": [
+        0.9701444494266863,
+        1.0
+      ],
+      "sens@8": [
+        0.9852941176470589,
+        1.0
+      ],
+      "sens1fp_3to6": [
+        0.8461538461538461,
+        0.9887640449438202
+      ],
+      "sens1fp_6to10": [
+        0.8813458434221146,
+        0.9868421052631579
+      ],
+      "sens1fp_10plus": [
+        1.0,
+        1.0
+      ],
+      "sens4fp_3to6": [
+        0.9777450980392156,
+        1.0
+      ],
+      "sens4fp_6to10": [
+        0.9090909090909091,
+        1.0
+      ],
+      "sens4fp_10plus": [
+        1.0,
+        1.0
+      ]
+    },
+    "official": {
+      "cpm": 0.9378603458571428,
+      "sens@0.125": 0.820627803,
+      "sens@0.25": 0.901345291,
+      "sens@0.5": 0.923766816,
+      "sens@1": 0.950672646,
+      "sens@2": 0.98206278,
+      "sens@4": 0.99103139,
+      "sens@8": 0.995515695
+    }
+  },
+  "metrics_val": {
+    "self": {
+      "cpm": 0.9678249678249679,
+      "sens@0.125": 0.9099099099099099,
+      "sens@0.25": 0.9279279279279279,
+      "sens@0.5": 0.9459459459459459,
+      "sens@1": 0.990990990990991,
+      "sens@2": 1.0,
+      "sens@4": 1.0,
+      "sens@8": 1.0,
+      "sens1fp_3to6": 0.9833333333333333,
+      "sens1fp_6to10": 1.0,
+      "sens1fp_10plus": 1.0,
+      "sens4fp_3to6": 1.0,
+      "sens4fp_6to10": 1.0,
+      "sens4fp_10plus": 1.0
+    },
+    "ci95": {
+      "cpm": [
+        0.9413489606368863,
+        0.9888009049773756
+      ],
+      "sens@0.125": [
+        0.8225768766958095,
+        0.9607938320959452
+      ],
+      "sens@0.25": [
+        0.8761061946902655,
+        0.979381443298969
+      ],
+      "sens@0.5": [
+        0.8947275759822091,
+        1.0
+      ],
+      "sens@1": [
+        0.959589800443459,
+        1.0
+      ],
+      "sens@2": [
+        1.0,
+        1.0
+      ],
+      "sens@4": [
+        1.0,
+        1.0
+      ],
+      "sens@8": [
+        1.0,
+        1.0
+      ],
+      "sens1fp_3to6": [
+        0.9264667182662539,
+        1.0
+      ],
+      "sens1fp_6to10": [
+        1.0,
+        1.0
+      ],
+      "sens1fp_10plus": [
+        1.0,
+        1.0
+      ],
+      "sens4fp_3to6": [
+        1.0,
+        1.0
+      ],
+      "sens4fp_6to10": [
+        1.0,
+        1.0
+      ],
+      "sens4fp_10plus": [
+        1.0,
+        1.0
+      ]
+    },
+    "official": {
+      "cpm": 0.9678249678571429,
+      "sens@0.125": 0.90990991,
+      "sens@0.25": 0.927927928,
+      "sens@0.5": 0.945945946,
+      "sens@1": 0.990990991,
+      "sens@2": 1.0,
+      "sens@4": 1.0,
+      "sens@8": 1.0
+    }
+  },
+  "configuration": {
+    "paths": {
+      "raw_luna16": "/data/tanyuejun/LUNA16/processed/LeCen/_scratch/raw_workspace",
+      "luna16_seg": "/data/tanyuejun/LUNA16/raw/seg_lungs/seg-lungs-LUNA16",
+      "luna16_annotations": "/data/tanyuejun/LUNA16/meta/annotations.csv",
+      "luna16_excluded": "/data/tanyuejun/LUNA16/raw/evaluation/evaluationScript/annotations/annotations_excluded.csv",
+      "luna16_evaluation_script": "/home/tanyuejun/LeCen_runtime/luna16_official_py3/noduleCADEvaluationLUNA16.py",
+      "raw_clinical": "/data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom",
+      "clinical_series": null,
+      "clinical_series_candidates": "/data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/acrin_baseline_series.csv",
+      "clinical_table": "/data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/clinical_acrin.csv",
+      "processed": "/tmp/tanyuejun_lecen_ssd_20261028/processed",
+      "meta": "/data/tanyuejun/LUNA16/meta/LeCen",
+      "cache": "/tmp/tanyuejun_lecen_ssd_20261028/cache"
+    },
+    "preprocess": {
+      "version": "lecen_pp_v1_ctclip_v2_mean12_20261028",
+      "spacing_zyx": [
+        1.25,
+        0.703125,
+        0.703125
+      ],
+      "hu_clip": [
+        -1000,
+        400
+      ],
+      "crop": {
+        "luna": {
+          "mode": "lung_bbox",
+          "margin_mm": 10.0,
+          "safety_mm": 5,
+          "fit_margins_mm": [
+            0,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30
+          ],
+          "lung_labels": [
+            3,
+            4
+          ]
+        },
+        "clinical": {
+          "mode": "lung_bbox",
+          "margin_mm": 30,
+          "lung_labels": [
+            1,
+            2
+          ]
+        },
+        "fallback": {
+          "lung_volume_ml": [
+            1000,
+            10000
+          ],
+          "min_bbox_mm_zyx": [
+            100,
+            120,
+            150
+          ],
+          "require_both_lungs": true,
+          "fallback_mode": "body_bbox",
+          "body_hu": -500
+        }
+      }
+    },
+    "ctclip": {
+      "checkpoint": "/data/tanyuejun/_shared/weights/ctclip/CT-CLIP_v2.pt",
+      "token_layer": "",
+      "pooled_grid": [
+        12,
+        12,
+        12
+      ],
+      "dtype": "float16"
+    },
+    "clinical": {
+      "collection": "acrin_nsclc_fdg_pet",
+      "columns": {
+        "patient_id": "patient_id",
+        "time_days": "???",
+        "event": "???",
+        "treatment": "???"
+      },
+      "event_values": "???",
+      "censor_values": "???",
+      "covariates": "???"
+    },
+    "splits": {
+      "det": {
+        "train": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "val": [
+          7
+        ],
+        "test": [
+          8,
+          9
+        ]
+      },
+      "clin": {
+        "ratios": [
+          0.6,
+          0.2,
+          0.2
+        ],
+        "stratify": [
+          "event",
+          "treatment"
+        ],
+        "seed": 2026
+      }
+    },
+    "name": "D0a",
+    "bundle_root": "/data/tanyuejun/_shared/weights/monai_bundle/lung_nodule_ct_detection",
+    "data_list_file_path": "/data/tanyuejun/LUNA16/meta/LeCen/monai_datalist_det.json",
+    "dataset_dir": "/tmp/tanyuejun_lecen_ssd_20261028/processed/luna16",
+    "spacing_xyz": [
+      0.703125,
+      0.703125,
+      1.25
+    ],
+    "load_pretrained": false
+  },
+  "seeds": {
+    "seed": 1000,
+    "exact_rng_resume": false,
+    "random_states_in_old_checkpoint": false
+  },
+  "logs": {
+    "training": {
+      "file": "train_log.csv",
+      "rows": 31200,
+      "coordinate": "iteration (not optimizer update)",
+      "merge": "Full history followed by resumed segment, one header, original values retained",
+      "resume_boundary_iteration": 20905,
+      "elapsed_seconds": "Per process invocation; resets at iteration 20905. Do not interpret as continuous wall time."
+    },
+    "validation": {
+      "file": "val_metrics.csv",
+      "rows": 40,
+      "coordinate": "epoch",
+      "training_monitor": "val_coco; not CPM"
+    }
+  },
+  "source_provenance": {
+    "baseline_git_commit": "e497537194cddf7bfec375c1064e524f8a9bee16",
+    "runtime_source_snapshot": {
+      "files": {
+        "d0a_ddp.py": "00df31a1d7d8ce7b380e25822606f5448a8aecd03709119d270cf08ed8389b4e",
+        "d0a_runtime.py": "de55a83c6518df6fca25b63ce8978f140bf4f8f550d7f6ac85e993db87a592e5",
+        "launch_d0a_ddp.py": "769eb045b5fd1eea6ff3c9f0c38f3601c346d02e11bc65f0393f5e01ba0ebbae"
+      },
+      "git_main": "e497537194cddf7bfec375c1064e524f8a9bee16",
+      "pretrained": false,
+      "resume_from": "/home/tanyuejun/LeCen/runs/D0a/20261028-180511-ddp4-b16-e200/checkpoints/last_training.pt",
+      "resume_epoch": 134,
+      "exact_rng_resume": false,
+      "probe_result": "/data/tanyuejun/_management/LeCen/d1_d2_watch/incidents/20261029T052816.581131Z_D1_failed/d0a_resume_probe_verified/resume_probe_complete.json"
+    },
+    "working_tree_note": "This result-only publication does not publish the runtime source or model weights; runtime snapshot describes the code used."
+  },
+  "metrics_note": "Official CPM and overall FP operating points match the self implementation within floating-point rounding. Size-bin sensitivity and CIs are from the self implementation. All final testing uses the checkpoint selected on validation.",
+  "artifact_manifest": {
+    "sources": [
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/config.yaml",
+        "bytes": 2393,
+        "sha256": "a4814614e58c7e23ccfbe471ea6daa84fd9ead76b9e0208e31c54174a904e048"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/metrics_test.json",
+        "bytes": 1723,
+        "sha256": "9d6fc25c404b67f33e9e97ee70c33451a1deb8b94fbb6bcd373502b75bfeb4a8"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/metrics_val.json",
+        "bytes": 1458,
+        "sha256": "4b9ad79ba4fa24e48041e99ec12e18831587d52bc3b3cf69084701d4e65f21f6"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/seeds.json",
+        "bytes": 92,
+        "sha256": "11bd5595d4e1454904565c28efa20e435cbe58c300580cef369509f04d2b06a6"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/history_before_resume_train_log.csv",
+        "bytes": 2160224,
+        "sha256": "8b3532cb167ac6f3f0b08ab0e431398b75bf871f641c1cf8c15dde376b8316a6"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/train_log.csv",
+        "bytes": 1086378,
+        "sha256": "90cb7d7e2ab875f38c3fbae48e4c3c434f6adec56776caf7d942a3cb88a2e9e7"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/history_before_resume_val_metrics.csv",
+        "bytes": 4874,
+        "sha256": "d141d6b29b7231756a40a1f8117f9f45ac4fa20130f0d156c792086b2dcfe202"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/val_metrics.csv",
+        "bytes": 2773,
+        "sha256": "c75546dc4e4908afb50c84b0818cd666c300745c5e083e31912e9e28ca50f4e3"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/ddp_config.json",
+        "bytes": 1012,
+        "sha256": "e29e4e9991edfcaedb7be51815011405ffd71cd94d5ccc6a12547047a3ee7f80"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/best_checkpoint.json",
+        "bytes": 524,
+        "sha256": "efd11fe09d91a614296a0034ed90d13bd3bb729f8842158ea9f67519673ec9b3"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/training_complete.json",
+        "bytes": 237,
+        "sha256": "1ee132fa9302f4645fd1e3b6d2e702bc244f1cbe77b8274a41726157a0691c54"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/runtime_source_snapshot.json",
+        "bytes": 696,
+        "sha256": "db51de34e517e8190d95ea395aebe5649176a732067399bdc25655fd48fe7a22"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D0a/20261029-055704-resume-e134/monai_train_config.json",
+        "bytes": 11405,
+        "sha256": "f941afb1df395f3cd81c1d4c328b6d6f69015e15b939f65fd133bb1818a4375e"
+      }
+    ],
+    "published_logs": [
+      {
+        "file": "train_log.csv",
+        "bytes": 3215298,
+        "sha256": "cb2926911be6591be862caff863278fb4cde3ad441914fea2c1bf411565e9731"
+      },
+      {
+        "file": "val_metrics.csv",
+        "bytes": 7328,
+        "sha256": "15ee8322815ca591440f6033142e49e9aa398d5b34799f3d9ba7fd9183862e3a"
+      }
+    ]
+  }
+}

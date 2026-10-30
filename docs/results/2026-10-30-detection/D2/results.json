@@ -1,0 +1,701 @@
+{
+  "schema_version": 1,
+  "experiment": "D2",
+  "run_id": "20261029-120947",
+  "status": "complete",
+  "local_run_directory": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947",
+  "split_protocol": "Fixed LUNA16 split; a single training seed/protocol per model; patient-level bootstrap 2000",
+  "checkpoint_selection": {
+    "criterion": "Validation CPM",
+    "optimizer_step": 20000,
+    "checkpoint_file": "checkpoints/best.pt"
+  },
+  "training": {
+    "optimizer_updates": 30000,
+    "skipped_updates": 0,
+    "precision": "BF16 autocast; no GradScaler",
+    "global_batch": 4,
+    "world_size": 2,
+    "shared_initialization": "fe9f505170acd3add1916c34523b91549bb0ea1a",
+    "local_recovery_enabled": false
+  },
+  "metrics_test": {
+    "self": {
+      "cpm": 0.8311688311688312,
+      "sens@0.125": 0.6681614349775785,
+      "sens@0.25": 0.7309417040358744,
+      "sens@0.5": 0.8116591928251121,
+      "sens@1": 0.8475336322869955,
+      "sens@2": 0.8944150020383205,
+      "sens@4": 0.9237668161434978,
+      "sens@8": 0.9417040358744395,
+      "sens1fp_3to6": 0.7444444444444445,
+      "sens1fp_6to10": 0.8823529411764706,
+      "sens1fp_10plus": 0.9538461538461539,
+      "sens4fp_3to6": 0.8777777777777778,
+      "sens4fp_6to10": 0.9411764705882353,
+      "sens4fp_10plus": 0.9692307692307692
+    },
+    "ci95": {
+      "cpm": [
+        0.7741777145765434,
+        0.8782222119617078
+      ],
+      "sens@0.125": [
+        0.5605817347789824,
+        0.7477885725278954
+      ],
+      "sens@0.25": [
+        0.6422333797620841,
+        0.8091136363636362
+      ],
+      "sens@0.5": [
+        0.74,
+        0.8697968749999999
+      ],
+      "sens@1": [
+        0.7900687456627342,
+        0.9014797468031344
+      ],
+      "sens@2": [
+        0.8371212121212122,
+        0.9439441240803339
+      ],
+      "sens@4": [
+        0.8790086551759217,
+        0.9622641509433962
+      ],
+      "sens@8": [
+        0.9083934449191119,
+        0.9711548353909465
+      ],
+      "sens1fp_3to6": [
+        0.6444391025641026,
+        0.8441558441558441
+      ],
+      "sens1fp_6to10": [
+        0.8039128151260505,
+        0.9672131147540983
+      ],
+      "sens1fp_10plus": [
+        0.8823529411764706,
+        1.0
+      ],
+      "sens4fp_3to6": [
+        0.7872198581560284,
+        0.9444444444444444
+      ],
+      "sens4fp_6to10": [
+        0.875,
+        1.0
+      ],
+      "sens4fp_10plus": [
+        0.9206349206349206,
+        1.0
+      ]
+    },
+    "official": {
+      "cpm": 0.831168831208724,
+      "sens@0.125": 0.668161435,
+      "sens@0.25": 0.730941704,
+      "sens@0.5": 0.811659193,
+      "sens@1": 0.847533632,
+      "sens@2": 0.8944150024610681,
+      "sens@4": 0.923766816,
+      "sens@8": 0.941704036
+    }
+  },
+  "metrics_val": {
+    "self": {
+      "cpm": 0.8767696267696267,
+      "sens@0.125": 0.7117117117117117,
+      "sens@0.25": 0.7747747747747747,
+      "sens@0.5": 0.831081081081081,
+      "sens@1": 0.9279279279279279,
+      "sens@2": 0.9459459459459459,
+      "sens@4": 0.972972972972973,
+      "sens@8": 0.972972972972973,
+      "sens1fp_3to6": 0.9,
+      "sens1fp_6to10": 1.0,
+      "sens1fp_10plus": 0.8888888888888888,
+      "sens4fp_3to6": 0.9833333333333333,
+      "sens4fp_6to10": 1.0,
+      "sens4fp_10plus": 0.8888888888888888
+    },
+    "ci95": {
+      "cpm": [
+        0.8121553884711777,
+        0.9267741980513136
+      ],
+      "sens@0.125": [
+        0.49089126559714796,
+        0.8058326728749752
+      ],
+      "sens@0.25": [
+        0.6640592981557377,
+        0.8721328029375762
+      ],
+      "sens@0.5": [
+        0.7477421728659353,
+        0.9191959921798631
+      ],
+      "sens@1": [
+        0.8623603415387411,
+        0.9743749999999999
+      ],
+      "sens@2": [
+        0.891080788751144,
+        0.9892529711375212
+      ],
+      "sens@4": [
+        0.9310344827586207,
+        0.9969947828755561
+      ],
+      "sens@8": [
+        0.9358974358974359,
+        1.0
+      ],
+      "sens1fp_3to6": [
+        0.8,
+        0.9744047619047617
+      ],
+      "sens1fp_6to10": [
+        1.0,
+        1.0
+      ],
+      "sens1fp_10plus": [
+        0.7333333333333333,
+        1.0
+      ],
+      "sens4fp_3to6": [
+        0.9259259259259259,
+        1.0
+      ],
+      "sens4fp_6to10": [
+        1.0,
+        1.0
+      ],
+      "sens4fp_10plus": [
+        0.7390732265446224,
+        1.0
+      ]
+    },
+    "official": {
+      "cpm": 0.8767696269071751,
+      "sens@0.125": 0.711711712,
+      "sens@0.25": 0.774774775,
+      "sens@0.5": 0.8310810813502252,
+      "sens@1": 0.927927928,
+      "sens@2": 0.945945946,
+      "sens@4": 0.972972973,
+      "sens@8": 0.972972973
+    }
+  },
+  "configuration": {
+    "paths": {
+      "raw_luna16": "/data/tanyuejun/LUNA16/processed/LeCen/_scratch/raw_workspace",
+      "luna16_seg": "/data/tanyuejun/LUNA16/raw/seg_lungs/seg-lungs-LUNA16",
+      "luna16_annotations": "/data/tanyuejun/LUNA16/meta/annotations.csv",
+      "luna16_excluded": "/data/tanyuejun/LUNA16/raw/evaluation/evaluationScript/annotations/annotations_excluded.csv",
+      "raw_clinical": "/data/tanyuejun/ACRIN-NSCLC-FDG-PET/dicom",
+      "clinical_series": null,
+      "clinical_table": "/data/tanyuejun/ACRIN-NSCLC-FDG-PET/preparation/meta/clinical_acrin.csv",
+      "processed": "/tmp/tanyuejun_lecen_ssd_20261028/processed",
+      "meta": "/data/tanyuejun/LUNA16/meta/LeCen",
+      "cache": "/tmp/tanyuejun_lecen_ssd_20261028/cache"
+    },
+    "preprocess": {
+      "version": "lecen_pp_v1_ctclip_v2_mean12_20261028",
+      "spacing_zyx": [
+        1.25,
+        0.703125,
+        0.703125
+      ],
+      "hu_clip": [
+        -1000,
+        400
+      ],
+      "crop": {
+        "luna": {
+          "mode": "lung_bbox",
+          "margin_mm": 10.0,
+          "safety_mm": 5,
+          "fit_margins_mm": [
+            0,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30
+          ],
+          "lung_labels": [
+            3,
+            4
+          ]
+        },
+        "clinical": {
+          "mode": "lung_bbox",
+          "margin_mm": 30,
+          "lung_labels": [
+            1,
+            2
+          ]
+        },
+        "fallback": {
+          "lung_volume_ml": [
+            1000,
+            10000
+          ],
+          "min_bbox_mm_zyx": [
+            100,
+            120,
+            150
+          ],
+          "require_both_lungs": true,
+          "fallback_mode": "body_bbox",
+          "body_hu": -500
+        }
+      }
+    },
+    "ctclip": {
+      "checkpoint": "/data/tanyuejun/_shared/weights/ctclip/CT-CLIP_v2.pt",
+      "token_layer": "",
+      "pooled_grid": [
+        12,
+        12,
+        12
+      ],
+      "dtype": "float16"
+    },
+    "clinical": {
+      "collection": "acrin_nsclc_fdg_pet",
+      "columns": {
+        "patient_id": null,
+        "time_days": null,
+        "event": null,
+        "treatment": null
+      },
+      "event_values": null,
+      "censor_values": null,
+      "covariates": null
+    },
+    "splits": {
+      "det": {
+        "train": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "val": [
+          7
+        ],
+        "test": [
+          8,
+          9
+        ]
+      },
+      "clin": {
+        "ratios": [
+          0.6,
+          0.2,
+          0.2
+        ],
+        "stratify": [
+          "event",
+          "treatment"
+        ],
+        "seed": 2026
+      }
+    },
+    "name": "D2",
+    "patch_zyx": [
+      80,
+      192,
+      192
+    ],
+    "pos_fraction": 0.5,
+    "pos_jitter_mm": 10,
+    "augment": {
+      "flip_axes": [
+        0,
+        1,
+        2
+      ],
+      "intensity": {
+        "scale": 0.1,
+        "shift": 0.05
+      },
+      "rotate": false
+    },
+    "sampling": {
+      "align_corners": false
+    },
+    "model": {
+      "dim": 256,
+      "backbone": {
+        "type": "resnet18_fpn",
+        "levels": [
+          2,
+          4,
+          8
+        ]
+      },
+      "heatmap": {
+        "level": 4,
+        "n_q": 64,
+        "nms_kernel": 3
+      },
+      "decoder": {
+        "layers": 3,
+        "heads": 8,
+        "local_grid": 7,
+        "local_extent_scale": 1.5,
+        "local_extent_min_mm": 10,
+        "use_global": true
+      },
+      "recovery": {
+        "enabled": false,
+        "crop_scale": 1.5,
+        "out_size": 32,
+        "dilate_vox": 2
+      }
+    },
+    "loss": {
+      "match_cost": {
+        "cls": 2.0,
+        "l1": 5.0,
+        "giou": 2.0
+      },
+      "aux_match": "final",
+      "exist_focal": {
+        "alpha": 0.25,
+        "gamma": 2.0
+      },
+      "w": {
+        "hm": 1.0,
+        "size": 0.1,
+        "exist": 2.0,
+        "l1": 5.0,
+        "giou": 2.0,
+        "local": 1.0
+      }
+    },
+    "optim": {
+      "type": "adamw",
+      "lr_decoder": 0.0002,
+      "lr_backbone": 0.0001,
+      "wd": 0.0001,
+      "warmup_iters": 1000,
+      "schedule": "cosine",
+      "clip_norm": 1.0
+    },
+    "train": {
+      "batch": 4,
+      "accum_steps": 1,
+      "iters": 30000,
+      "amp": true,
+      "val_every": 2000,
+      "workers": 2,
+      "failure_dir": "/data/tanyuejun/_management/LeCen/bf16_30k_20261029/failures"
+    },
+    "infer": {
+      "overlap": 0.25,
+      "p_min": 0.05,
+      "nms": "center_distance",
+      "nms_radius_scale": 0.5
+    },
+    "adapt": {
+      "iters": null
+    },
+    "seeds": {
+      "init": 1000,
+      "recovery_init": 1001,
+      "data": 2000
+    },
+    "init_ckpt": "/data/tanyuejun/_shared/checkpoints/LeCen/init.pt",
+    "ddp": {
+      "zero_loss_for_unused": true
+    }
+  },
+  "seeds": {
+    "init": 1000,
+    "recovery_init": 1001,
+    "data": 2000
+  },
+  "logs": {
+    "training": {
+      "file": "train_log.csv",
+      "rows": 30000,
+      "coordinate": "step = applied optimizer update",
+      "grad_norm": "Total gradient norm before clipping; clip_norm=1.0"
+    },
+    "validation": {
+      "file": "val_metrics.csv",
+      "rows": 15,
+      "coordinate": "optimizer step",
+      "historical_values": "Original training-time records retained, including pre-fix cumulative recall-chain fields. Final metrics and posttraining validation below were recomputed after the threshold-boundary fix."
+    }
+  },
+  "hashes": {
+    "git_commit": "3522fd9939eed4a12daac049bfcd948e72cdc068",
+    "init_ckpt": "fe9f505170acd3add1916c34523b91549bb0ea1a",
+    "world_size": 2,
+    "splits_det": "77ed1d098ba566af29d3e3b0b153d9c0fa60c77e",
+    "splits_clin": "e3d7c896cdf7b1096bb9f6ab579f98f852b4ef79",
+    "crop_luna_margin_mm": 10.0,
+    "crop_clinical_margin_mm": 30,
+    "preprocessing_version": "lecen_pp_v1_ctclip_v2_mean12_20261028"
+  },
+  "posttraining_validation": {
+    "selected_checkpoint": {
+      "eval_split": "val",
+      "checkpoint": {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/checkpoints/best.pt",
+        "step": 20000
+      },
+      "output_directory": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947",
+      "config_p_min": 0.05,
+      "fitted_p_min": 0.05,
+      "scan_count": 89,
+      "gt_count": 111,
+      "gt_3to6mm_count": 60,
+      "default": {
+        "threshold": 0.05,
+        "predictions": 1602,
+        "false_positives": 1158,
+        "fp_per_scan": 13.01123595505618,
+        "CPM": 0.8767696267696267,
+        "sens@1FP": 0.9279279279279279,
+        "sens@1FP_3-6mm": 0.9,
+        "max_sensitivity": 0.972972972972973
+      },
+      "fitted": {
+        "threshold": 0.05,
+        "predictions": 1602,
+        "false_positives": 1158,
+        "fp_per_scan": 13.01123595505618,
+        "CPM": 0.8767696267696267,
+        "sens@1FP": 0.9279279279279279,
+        "sens@1FP_3-6mm": 0.9,
+        "max_sensitivity": 0.972972972972973
+      }
+    },
+    "step_030000": {
+      "eval_split": "val",
+      "checkpoint": {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/checkpoints/last.pt",
+        "step": 30000
+      },
+      "output_directory": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/validation_review/step_030000",
+      "config_p_min": 0.05,
+      "fitted_p_min": 0.049589026719331734,
+      "scan_count": 89,
+      "gt_count": 111,
+      "gt_3to6mm_count": 60,
+      "default": {
+        "threshold": 0.05,
+        "predictions": 1054,
+        "false_positives": 695,
+        "fp_per_scan": 7.808988764044944,
+        "CPM": 0.8558558558558558,
+        "sens@1FP": 0.8828828828828829,
+        "sens@1FP_3-6mm": 0.8833333333333333,
+        "max_sensitivity": 0.954954954954955
+      },
+      "fitted": {
+        "threshold": 0.049589026719331734,
+        "predictions": 1086,
+        "false_positives": 726,
+        "fp_per_scan": 8.157303370786517,
+        "CPM": 0.8558558558558558,
+        "sens@1FP": 0.8828828828828829,
+        "sens@1FP_3-6mm": 0.8833333333333333,
+        "max_sensitivity": 0.954954954954955
+      }
+    }
+  },
+  "source_provenance": {
+    "baseline_git_commit": "3522fd9939eed4a12daac049bfcd948e72cdc068",
+    "training_source_snapshot": {
+      "base_commit": "3522fd9939eed4a12daac049bfcd948e72cdc068",
+      "branch": "main",
+      "files": {
+        "docs/reports/2026-10-29-skipped-increments.png": "cf55f234b895e6430022dc8ea7250429a000e372f98ebd85f7c945c4760893c7",
+        ".gitignore": "9f5b5e01279df789596adbf99c8691cf125101fdaabd62c88e93f091c7173d03",
+        "common/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "common/boxes.py": "a3ef74b40a7b75050f5103254e677a721f333fd4e7c0bc26f2984c732f338eb7",
+        "common/coords.py": "7c73a0d52190d8afdcf60948edc65f8a14802b2c10b5ffc99140a91b4b32868b",
+        "common/dist.py": "ad63b4feda52ffe4afdcd89e83adb226eee18cdfdfc187b298eee472c5e8c19b",
+        "common/hashing.py": "1e7e5eb258bdbedf704dcf1bd7f35566c2a939c8272394d0f6b77760ab4f92b9",
+        "common/io.py": "c5b4bf6ac04e509f4ec7071af7011b1b64f0870781a5b7c5e77f480df92f9e08",
+        "common/sampling.py": "e9509e66ae9476092fc30586d172096e20a8249d23b9b6c2f23769dac439812d",
+        "common/seed.py": "8262ef8ff9fd1ca264152d00c1bc8dca6fe5cc6a89074330796e6f14c120ed5d",
+        "configs/clin/S0.yaml": "e24ecc42bc4e3230b4bd19e910849812102bd6d3dc35625ca9e554b25c776c78",
+        "configs/clin/S1.yaml": "b3d8f76ad5995beff109c48fa2b5f8aa6680ffd7d910424129e1f3f890540330",
+        "configs/clin/S2.yaml": "f28c8fd8dd0b9277ead52394b1d95cc616cf9aaf6e67dca6274971d5a92a8e0d",
+        "configs/clin/S3.yaml": "a7d8e6645fb66963bcad200468c64f25fa2af1860b0b8a28d1baeafcf6b613b0",
+        "configs/clin/S4.yaml": "78775d32828dc8506c37947d7a512d6c216ed7a7181b05f63a77281578a65a9c",
+        "configs/clin/S5.yaml": "5c7c3e8dbb05a09b3a6c6acbf15b2877a13c732f72e3e03bf73a871cbbf9ab45",
+        "configs/clin/base.yaml": "c1f3bc27da9b39500d3b1a73ca4401478561cf582cbd91d292355ad74616f911",
+        "configs/data.yaml": "6e3ccf1681967b6953a24bffcc0d0c950f7d63b6b47d25ac06c3e83cd91d52c3",
+        "configs/det/D0a_monai.yaml": "378f080493f7afbf50fa4184c852dbdf01301aee700d3f5b69c318b67fef1025",
+        "configs/det/D1.yaml": "f019b0873739e5ab1fe20b002e4bbea9fcca71e0c00ffd64e2357f6f7a69d662",
+        "configs/det/D2.yaml": "b496ea4723ff54fabee337bdde8bd8de8f5e5d7b3592d5052a93b1bb59f29767",
+        "configs/det/base.yaml": "ec5db02eb8ee8457c3faef9fa7af69a4f70702bc0fe200577e09e6cbcf98b72d",
+        "data/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "data/build_instances.py": "b80e105fa6bad3e25e1e58dad753f81c1ceafa6fa1d2b46e026b9d8a50c2eeb7",
+        "data/cache_ctclip.py": "e77ed252a6bb3c1f1ee56e1c82d110a7c677634fd9d283dbd7c4eae4717b317c",
+        "data/clin_dataset.py": "b8b1232804e1ab56d79f10cef2ddd4c23fec6ece6e070b4c0182b39347efb4a9",
+        "data/crop_rules.py": "45dcfef3d2078df5907f6eadc9fbfbd8b7c877bdbecf11b3a771b7c139aa5cc4",
+        "data/det_dataset.py": "52ff66462eed531d6361ca2239345e45d08431a303a05953cffc033282e7de8e",
+        "data/infer_dataset.py": "30fb6b78af281d0461be0a8ca11f4f628c3d4c0ef8a72f1d1f319d1cb3e20fe0",
+        "data/lidc_masks.py": "060bc97bc29cc3e2b0c607bdc6598223b161aa53976e9fe11f498702d3c831a0",
+        "data/make_splits.py": "1a79cc0ca900785bbe0fa1b56c1b9e57c978babc1c8ebd1465e070e1c4d4225f",
+        "data/prep_clinical.py": "1fd335461705f629dd23d8a130f9c645fa7ee0a2acb1a12dc48902c1747f9f54",
+        "data/prep_luna16.py": "278ad58486afa732a416a6eb551f6f89996d89c924d6cb0576df68007aab1bb6",
+        "docs/reports/2026-10-28-numerical-fix-verification.md": "ff6995620b1caa41f77c14bddafcb46e7ca0c9a423f2edb1a120000105eabc07",
+        "docs/reports/2026-10-28-training-failure-evidence.json": "f7f8db9fb8a601807e55116671333e47c7e2d68bbea63b8b3a2f18c153fd5388",
+        "docs/reports/2026-10-28-training-failure.md": "b4ad3e710ac767cf91b31e36b3585efc65e21c543f8df95b88f292128ccf9366",
+        "docs/reports/2026-10-29-amp-scale-underflow.md": "ff2ac7e1cb024aca344b5c34940668fda489ddcf99cb9fc8d1d776491e050cec",
+        "docs/reports/2026-10-29-heatmap-overflow-fix.md": "bdd6aa383d6c46f8af628ddb3e63b295d55533fa76085b8434153275627f272c",
+        "engine/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "engine/adapt_clinical.py": "9028d4d6ad9ecfcb75993d950609f1ed96ec25131526d9a72b6ba46e4127f51e",
+        "engine/extract_slots.py": "9b4f4c2aaa263bdac0743e5d4b4562b9d909e1a1ea2658c2eb732d5f10de7cd6",
+        "engine/infer_det.py": "556d2e480483da749069b0b98c4e2381f4497e96ec7d19e49ff966dbc1f4aee2",
+        "engine/train_det.py": "ebe0ffe09561b650292c0a58fafe3de391de1818bf7586a45421f48e7140cdab",
+        "engine/train_surv.py": "4faa3c4ff4d63a7a3a00231c91b8e02602b3c810052a294d4c6bfdef43c7ccd3",
+        "eval/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "eval/compare.py": "1b778fe6f08af871d9bc6a07b93618c3c21e51db6be833a81cc6f61b4972068c",
+        "eval/froc.py": "6e3f0d8e65889208ce76b80de56e3079600fa483d0c8029383a4b3977b5a6649",
+        "eval/luna16_official/README.md": "84dfa45af3a18de662a9a9a9d7d41cce924300db4878595b9fdb66a08f781176",
+        "eval/recall_chain.py": "95cfed25d9b11fe31c3d32e58e0753c093b9af38ef381e38aeab27e7a7f1991c",
+        "eval/shuffle_h.py": "b4f3eca016b83016cd8f343dd77d39c4f16e3204d2bee2692a4ef7bddcc7396f",
+        "eval/surv_eval.py": "4da9b54c055839edc86a720a531991283ad982a5a3de25f1a4e7d707892a193c",
+        "losses/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "losses/det_loss.py": "39137ecfc34fdfc1b06947bb846f5a3a326ba13dc1779673bb835912a161cf61",
+        "losses/heatmap_loss.py": "bddd8b62b549cd25c4a7e054da424a14f508f0873a9c5ca27965571836c4dd33",
+        "losses/matching.py": "930e78e7ca3b58a9652707936cf7bc60d18869388ea40c757319cc6284245940",
+        "losses/recovery_loss.py": "993d1a8dd1f2b9c9d683c0ced1d81ab4b6ccb1fd640a3156b32ac37947783b3b",
+        "losses/surv_loss.py": "787e80961ad9d265f1aa143b1466333acdc7d4c631819d9e048e691f45c2ca99",
+        "models/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "models/backbone.py": "ceb1e2c86ad014b52d138ce280271fb2c46641064a9b3d4ee6f2b5fc6f078270",
+        "models/clinical.py": "80873abaf65ed956b2d5da18025b45a1f7347b29f36211b81c8db8a154363e98",
+        "models/det_head.py": "b64863d549b89c3c491c9a8b86daafed2a3c562357b6c32a31dff6d3fcfd7a5c",
+        "models/detector.py": "347aa42f7e8e43a36576a2a585a2093186bb2b22501ee25b5991762c2cb287fa",
+        "models/global_adapter.py": "cc6a2060ca19d5e36e733f5548e65df3b2dcadba0bc39a561ab2dcd43c55c497",
+        "models/heatmap_head.py": "d234bee72ed74bea8eecd9805cb344e9d1513ff104158cb77b59c8b5dadd4030",
+        "models/query_decoder.py": "23d61e60362f6bae9bd6c0a1f85b701784bf7f4a57565e8d4c3fc003fc8740b0",
+        "models/recovery.py": "39866cf5568b543df290baf9a1eadddb6de8989303d2bb42f336f641aae858e9",
+        "pytest.ini": "07e12af78809b103a9e003b9bf24f9718928fa263046b37bf3ebc9ebbf802ceb",
+        "readme.md": "fd5e2a552f368f97819f6060c65d0929b56e90dd0fc4fba4826a0e3d94621941",
+        "runs/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tests/test_amp_step.py": "c0e350add0e097ad3f6400f0b9a9941d6a2204184fd720fca788fe9f2a223e48",
+        "tests/test_attention_stability.py": "89044f9d7285412a82e7dd1a467c6e9163fcdc2c6d2801af516e494f5a666c41",
+        "tests/test_coords.py": "d72a8b489e88ca28592ab7b59b11209a78ae3146e11a619670993c985d14ecb2",
+        "tests/test_crop_rules.py": "83967d079caee20cd846ee7a0b296dbe92b6ead51cccc8c293fcd5e305c17099",
+        "tests/test_ctclip_cache.py": "fbd5e58047ac5469e266f647a242aba36026731ce53fa3b848531a605be6f65a",
+        "tests/test_dataset_targets.py": "5dfcc4d7687384069e24c52e6048558815056ab21943f71b5e1100b98930d036",
+        "tests/test_determinism.py": "cd8167d380d2473e905602c37a55de85726a0f29c4d0426ea9e561272648d7d3",
+        "tests/test_empty_cases.py": "dd0505f9b1f43313ee81f1a05200ccf5790c306c4053f87851c4f7a1d58f5b94",
+        "tests/test_eval_oracle.py": "cdc6c9e7901be238dd29a5840d73a568866396f89d2364e87fd9f7fe2e122041",
+        "tests/test_failure_snapshot.py": "f791dec11f9876a926587961ac5949b77c9a613cb2df8ed7b3da876d9f43883f",
+        "tests/test_heatmap_stability.py": "3a7d96b1075240c8177c58f561e688d53ce3e5a77b7223fd91b34643de1e7a26",
+        "tests/test_lidc_masks.py": "7c1209001f15182cd6fd04926bd4bc2302373a7801109650e43d75d2fed09fc9",
+        "tests/test_matching.py": "50fc9ce2264a22d3cf370a66b586ac41ea1ad5089f543093041cbf10038d9e79",
+        "tests/test_recovery_targets.py": "5265b365c4a8cfdaabdb640c2ab3756191e957ba115b6a9982a9a3693dd0f70c",
+        "tests/test_sampling.py": "d6ad53bd7c4e17a52dfdde6375d753cb71690251fc373e8a7acbf9ca8a3a2462",
+        "tests/test_surv_labels.py": "4f115cc31fb504096ee5ccbaf38993e825f26090f9ee5efe6552ffaa38f13660",
+        "tests/test_survival_inputs.py": "ca3518745f6db3ddc225e18cbf6dc9ca7745140abc0723e135a0fa289e93690a",
+        "tools/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tools/make_init.py": "343fc7f9207a02be49cda292036ae2343092b8d8eab07b5aba0744c77c3af461",
+        "tools/visualize.py": "799471a92a1b1e168dc1b9131fb75ee5246ed6c9d9911b2758956da9a97fc799"
+      },
+      "precision": "bfloat16",
+      "target_steps": 30000,
+      "restart_from_shared_initialization": true,
+      "evidence_directory": "/data/tanyuejun/_management/LeCen/bf16_30k_20261029"
+    },
+    "working_tree_note": "Training used the recorded baseline plus then-uncommitted BF16/numerical fixes. This commit publishes results and logs, not that training implementation."
+  },
+  "p_min": {
+    "p_min": 0.05,
+    "config_p_min": 0.05
+  },
+  "metrics_note": "Official CPM and overall FP operating points match the self implementation within floating-point rounding. Size-bin sensitivity and CIs are from the self implementation. All final testing uses the checkpoint selected on validation.",
+  "artifact_manifest": {
+    "sources": [
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/config.yaml",
+        "bytes": 3213,
+        "sha256": "a36cdc1129937583ef94b9b8c9de3ad0d79dc872f30ed1f3af28ae2e3b1c13da"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/metrics_test.json",
+        "bytes": 1825,
+        "sha256": "a200d96b8c11cd64639572f69d4b94ec2b28b938449424816539500475b6b545"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/metrics_val.json",
+        "bytes": 1715,
+        "sha256": "18e9a6e36c6e6172cc20f8475eaf819c06b6ac68cfde0998e8d338a9fa62ebcc"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/seeds.json",
+        "bytes": 59,
+        "sha256": "b71d05ce67d142350d4199392a3f5d303e9dd8e6048637e542f9ac2e9a7bddd4"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/train_log.csv",
+        "bytes": 4241063,
+        "sha256": "17096f16ab632a74b4d5f2f303bcfd7c384a87d5ecc0c46a2383b0ddef0c1284"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/val_metrics.csv",
+        "bytes": 2125,
+        "sha256": "bac38b70c549d8d99e2d0794ba208690218ffa60806251a7ce375ccf6b53551c"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/hashes.json",
+        "bytes": 393,
+        "sha256": "a013bfceddfc13ff3117a6f9a8c2f898996bff4671251f2d4328c7022d549505"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/bf16_30k_source_snapshot.json",
+        "bytes": 8995,
+        "sha256": "5618dbb5319f8a69bdcb393aa794abec48e00191f71e2e4b2167d7720e4b3222"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/p_min.json",
+        "bytes": 43,
+        "sha256": "fd4a16d0a899bb6b1ddb1925f2326e8d284664c6af8f9ccf4a9484bea824a66e"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/mech/threshold_validation.json",
+        "bytes": 905,
+        "sha256": "ba8366dcaae90888bdd3b8009fedba8727cde29a20d8606d27932f30d943e7e5"
+      },
+      {
+        "path": "/home/tanyuejun/LeCen_workspace/project/runs/D2/20261029-120947/validation_review/step_030000/mech/threshold_validation.json",
+        "bytes": 995,
+        "sha256": "65c3d134251ac6fce6996985097d1c030fa116adf9418634e2de6ff295e733b9"
+      }
+    ],
+    "published_logs": [
+      {
+        "file": "train_log.csv",
+        "bytes": 4241063,
+        "sha256": "17096f16ab632a74b4d5f2f303bcfd7c384a87d5ecc0c46a2383b0ddef0c1284"
+      },
+      {
+        "file": "val_metrics.csv",
+        "bytes": 2125,
+        "sha256": "bac38b70c549d8d99e2d0794ba208690218ffa60806251a7ce375ccf6b53551c"
+      }
+    ]
+  }
+}
