@@ -98,7 +98,8 @@ python -m eval.window_core --run runs/D1/20261029-122606         # 验证集：�
 python -m eval.recall_chain --run runs/D1/20261029-122606 --split val
 # D0a 当前目录为 runs/D0a/20261029-055704-resume-e134；MONAI 训练与推理由外部运行器和自动队列接续。
 # 推理产物生成后，可手动转换 MONAI 输出（正式测试只登记一次）：
-python -m engine.infer_det --run runs/D0a/20261029-055704-resume-e134 --split test --final --monai-json runs/D0a/20261029-055704-resume-e134/monai_test_project_format.json
+python -m engine.infer_det --run runs/D0a/20261029-055704-resume-e134 --split val --monai-json <val 推理输出> --monai-config <val 推理配置>
+python -m engine.infer_det --run runs/D0a/20261029-055704-resume-e134 --split test --final --monai-json <test 推理输出> --monai-config <test 推理配置>
 
 # 临床：以下为复现入口；当前正式任务由自动队列接续
 # D1_CLINICAL_RUN、D2_CLINICAL_RUN、S5_RUN、S2_RUN 应填 runs/index.json 中已登记的实际路径
@@ -168,6 +169,21 @@ D1 的恢复梯度检查使用未缩放的实际梯度。检测头已经输出 F
 `pycox==0.3.0` 已安装在本机运行环境中，核心 PyTorch/NumPy/Pandas 版本保持不变。
 跳步审计、精简方案及验证见 [AMP 缩放故障报告](docs/reports/2026-10-29-amp-scale-underflow.md)。
 早期热图 FP16 失败证据保留在 [历史热图报告](docs/reports/2026-10-29-heatmap-overflow-fix.md)。
+
+### 审计后的两项实现更正
+
+- **生存模型更新位置**：配置键由 `model.update` 改为 `model.update_at`（`lesion` = f，S4 / S5；`pooled` = g，S2）。
+  OmegaConf 的 DictConfig 是 MutableMapping，`cfg.update` 取到的是 dict 的方法而不是配置值，首轮 S4/S5 因此全部执行了 g。
+  模型在构造时校验取值，forward 记录实际执行的分支；每次神经生存训练写出 `model_branch.json`（配置值与实际执行值），两者不一致时报错。
+  `tests/test_update_branch.py` 检查：S2 为 pooled、S4/S5 为 lesion；S4 与 S5 的完整配置只差 `slots.extractor`；
+  S5 与 S2 的模型配置只差 `update_at`；forward 实际走对应分支；同一组参数下两种结构的输出不同。
+- **D0a 权重归属**：`infer_det --monai-json` 必须同时给出 MONAI 实际使用的推理配置 `--monai-config`。
+  转换前按 bundle 表达式解析 `load_pretrain` 与 `checkpointloader#load_path`，要求启用加载且加载文件与 `<run>/checkpoints/model.pt`
+  （验证集选出的 epoch 165）SHA256 相同，否则拒绝转换，也不登记测试；通过时写出 `monai_<split>_provenance.json`。
+  首轮推理配置加载的是 bundle 自带 `models/model.pt`。外部运行器生成推理配置时须把 load_path 指向该运行的 checkpoint。
+- 两项都需要重跑：S2 / S4 / S5 重新训练与评估（S2 的结构未变，重跑应与首轮 S2 预测一致，可作复现核对）；D0a 只需用正确权重重新推理验证集与测试集。
+  首轮这些配置已在 `runs/test_log.csv` 登记，重新正式评测前须先决定如何处理旧登记。
+  Lung1 test 与 ACRIN external 已经看过，这次重跑属于对预先设定设计的实现更正，不调整超参数或选择规则；确认性结论需要新的独立测试队列。
 
 ### D1 / D2 首轮结果后的两项修改
 

@@ -4,7 +4,8 @@ slots:
   k_max: 16
   cover_margin_mm: 5
 # 所有影像配置共用 G0 全局向量 g_global（CT-CLIP 缓存 token 均值，512 维）；slot 来自 slots.extractor（256 维）
-model: {type: neural, slots: true, update: f, treatment: true,
+# update_at：lesion = f（逐病灶更新后聚合，S4 / S5）；pooled = g（聚合后更新，S2）
+model: {type: neural, slots: true, update_at: lesion, treatment: true,
         f_hidden: 256, head_hidden: 128, dropout: 0.2, ea_dim: 16, ec_dim: 32}
 surv: {n_t: 10, t_star_days: 730, ipcw_quantile: 0.8, ibs_points: 50}
 train: {lr: 1.0e-3, wd: 1.0e-4, batch: 32, max_epochs: 200, patience: 20}

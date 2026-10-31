@@ -8,7 +8,8 @@
 
 python -m engine.infer_det --run runs/D1/<run_id> --split val
 python -m engine.infer_det --run runs/D1/<run_id> --split test --final
-python -m engine.infer_det --run runs/D0a/<run_id> --split test --final --monai-json <MONAI 推理输出>
+python -m engine.infer_det --run runs/D0a/<run_id> --split test --final --monai-json <MONAI 推理输出> --monai-config <MONAI 推理配置>
+（D0a：先核对推理配置实际加载的权重与 <run>/checkpoints/model.pt 的 SHA256 一致，再转换）
 """
 import argparse
 from pathlib import Path
@@ -20,6 +21,7 @@ from omegaconf import OmegaConf
 
 from common.boxes import patch_box_to_world
 from common.coords import patch_to_vol, patch_to_world
+from common.hashing import file_sha1
 from common.io import ROOT, load_config, read_json, register_final, write_csv, write_json
 from data.det_dataset import to_device
 from data.infer_dataset import InferCase
@@ -115,6 +117,29 @@ def monai_preds(path):
     return pd.DataFrame(rows, columns=["seriesuid", "coordX", "coordY", "coordZ", "probability"])
 
 
+def monai_checkpoint(config_path):
+    """MONAI 推理配置实际加载的权重：(load_pretrain, checkpointloader#load_path)，按 bundle 配置表达式解析。"""
+    from monai.bundle import ConfigParser
+
+    parser = ConfigParser()
+    parser.read_config(str(config_path))
+    return bool(parser.get_parsed_content("load_pretrain")), Path(parser.get_parsed_content("checkpointloader#load_path"))
+
+
+def verify_monai_checkpoint(run, config_path, split):
+    """D0a 预测必须来自该运行验证集选出的权重 <run>/checkpoints/model.pt：推理配置须启用加载，
+    且加载文件与之 SHA256 相同；否则拒绝转换。通过时把两者路径与哈希写入 <run>/monai_<split>_provenance.json。"""
+    expected = Path(run) / "checkpoints" / "model.pt"
+    load, loaded = monai_checkpoint(config_path)
+    record = {"monai_config": str(config_path), "load_pretrain": load,
+              "loaded": str(loaded), "loaded_sha256": file_sha1(loaded, "sha256") if loaded.is_file() else None,
+              "expected": str(expected), "expected_sha256": file_sha1(expected, "sha256")}
+    if not load or record["loaded_sha256"] != record["expected_sha256"]:
+        raise ValueError(f"D0a 推理没有加载该运行的权重：{record}")
+    write_json(Path(run) / f"monai_{split}_provenance.json", record)
+    return record
+
+
 def load_detector(run, dev, ckpt="best.pt"):
     cfg = OmegaConf.load(Path(run) / "config.yaml")
     model = Detector(cfg)
@@ -122,14 +147,14 @@ def load_detector(run, dev, ckpt="best.pt"):
     return cfg, model.to(dev).eval()
 
 
-def main(run, split, final, monai_json):
+def main(run, split, final, monai_json, monai_config):
     run = Path(run)
     if monai_json:
-        run.mkdir(parents=True, exist_ok=True)
+        verify_monai_checkpoint(run, monai_config, split)
         OmegaConf.save(load_config(ROOT / "configs" / "det" / "D0a_monai.yaml"), run / "config.yaml", resolve=True)
     cfg = OmegaConf.load(run / "config.yaml")
     if final:
-        register_final(cfg.name, run, monai_json or run / "checkpoints" / "best.pt")
+        register_final(cfg.name, run, run / "checkpoints" / ("model.pt" if monai_json else "best.pt"))
     if monai_json:
         write_csv(run / f"preds_{split}.csv", monai_preds(monai_json))
         return
@@ -147,7 +172,10 @@ if __name__ == "__main__":
     ap.add_argument("--split", choices=["val", "test"], required=True)
     ap.add_argument("--final", action="store_true")
     ap.add_argument("--monai-json")
+    ap.add_argument("--monai-config", help="生成 --monai-json 时 MONAI 实际使用的推理配置；用于核对加载的权重")
     args = ap.parse_args()
     if args.split == "test" and not args.final:
         ap.error("测试集评测需显式传入 --final")
-    main(args.run, args.split, args.final, args.monai_json)
+    if bool(args.monai_json) != bool(args.monai_config):
+        ap.error("--monai-json 与 --monai-config 必须同时给出")
+    main(args.run, args.split, args.final, args.monai_json, args.monai_config)

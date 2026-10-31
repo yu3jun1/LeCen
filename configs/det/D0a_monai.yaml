@@ -2,6 +2,8 @@
 # 复用官方网络与训练代码；固定划分（训练 subset0–6，验证 subset7）；从头训练，不加载官方 LUNA16 权重。
 # 数据列表由 data/make_splits.py 写到 <meta>/monai_datalist_det.json（教程格式，世界坐标 cccwhd）。
 # MONAI 推理输出经 engine/infer_det.py --monai-json 转为官方 csv，走同一评测流程。
+# 转换前用 --monai-config 核对推理实际加载的权重：load_pretrain 须为 true，checkpointloader#load_path 解析出的文件
+# 须与 <run>/checkpoints/model.pt（验证集选出的 epoch）SHA256 相同；首轮推理加载了 bundle 自带 models/model.pt。
 defaults: [../data.yaml]
 bundle_root: /data/tanyuejun/_shared/weights/monai_bundle/lung_nodule_ct_detection
 data_list_file_path: ${paths.meta}/monai_datalist_det.json

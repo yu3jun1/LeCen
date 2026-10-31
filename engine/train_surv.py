@@ -17,7 +17,7 @@ import torch
 from lifelines import CoxPHFitter
 
 from common.hashing import file_sha1
-from common.io import data_hashes, load_config, make_run, read_json, write_npz
+from common.io import data_hashes, load_config, make_run, read_json, write_json, write_npz
 from common.seed import generator
 from data.clin_dataset import cohort, global_hashes, load_table, take
 from eval.surv_eval import fixed_times
@@ -68,6 +68,9 @@ def fit_neural(cfg, df, x, times, run):
             if wait >= cfg.train.patience:
                 break
     pd.DataFrame(rows).to_csv(run / "train_log.csv", index=False)
+    write_json(run / "model_branch.json", {"slots": model.slots, "update_at": model.update_at, "executed_update": model.executed_update})
+    if model.executed_update != model.update_at:
+        raise RuntimeError(f"配置的更新位置 {model.update_at} 与实际执行的 {model.executed_update} 不一致")
     model.load_state_dict(best_state)
     torch.save(best_state, run / "best.pt")
     model.eval()

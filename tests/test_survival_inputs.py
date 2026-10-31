@@ -1,4 +1,6 @@
 """生存实验的输入可归因性：S1（G0）不依赖检测器与 slot；S1–S5 共用同一个 g_global，S4/S5 只差 slot 来源。"""
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -83,3 +85,5 @@ def test_model_dims(tmp_path, name):
     run.mkdir()
     surv = fit_neural(cfg, df, x, np.array([100.0, 300.0]), run)((df.split == "test").to_numpy())
     assert np.isfinite(surv).all()
+    branch = json.loads((run / "model_branch.json").read_text())
+    assert branch["executed_update"] == branch["update_at"] == {"S2": "pooled", "S5": "lesion"}[name]

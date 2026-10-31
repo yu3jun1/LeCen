@@ -4,8 +4,8 @@ import hashlib
 from omegaconf import OmegaConf
 
 
-def file_sha1(path):
-    h = hashlib.sha1()
+def file_sha1(path, algo="sha1"):
+    h = hashlib.new(algo)
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
