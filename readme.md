@@ -3,6 +3,10 @@
 Lesion-Centric CT 世界模型第一轮核心实验代码：检测 D0a / D1 / D2，生存 S0–S5（S3 仅在治疗有变化时运行），机制检查（恢复梯度、打乱 h、信息丢失链）。
 第一版只用固定划分与单一随机种子，不做多折与重复种子实验。
 
+本轮队列已执行结束，结果与有效性审计见[最终实验报告](docs/reports/2026-10-31-final-experiment-report.md)。审计确认：D0a现存推理加载的bundle权重没有对应训练best165；S4/S5因配置访问冲突实际执行g而非预期f。原始产物保留，不能把这些名义配置的分数当作相应设计已被正确验证；本次报告没有修改实现或重跑实验。
+
+轻量结果文件：[检测指标CSV](docs/reports/2026-10-31-final-results/detection_metrics.csv)、[生存指标CSV](docs/reports/2026-10-31-final-results/survival_metrics.csv)。完整训练日志、模型权重与冻结配置保留在本地原始 `runs/` 目录；运行路径和有效性说明见最终报告。
+
 ## 环境
 
 Python 3.10；PyTorch 2.x；MONAI 1.x；SimpleITK、nibabel；pylidc；lungmask；scipy；pandas；OmegaConf；lifelines；pycox；scikit-survival；idc-index；matplotlib。
@@ -79,7 +83,7 @@ python -m data.prep_clinical --cfg configs/data.yaml --cohort acrin
 python -m data.crop_rules --cfg configs/data.yaml --audit             # 事后保留率审计
 pytest tests/ -k "coords or sampling or lidc or ctclip or crop or eval_oracle or dataset"
 
-# 检测（本轮 D1/D2 已完成30000步；以下为复现入口，共享初始化直接复用）
+# 检测（首轮 D1/D2 已完成30000步；以下为复现入口，共享初始化直接复用）
 # 仅在明确需要重新生成共享初始化时执行，会写入 cfg.init_ckpt：
 # python -m tools.make_init --cfg configs/det/D1.yaml --seed 1000
 python -m engine.train_det --cfg configs/det/D1.yaml                              # 单卡
@@ -160,7 +164,7 @@ FP16 分数先溢出，随后 NaN 传播到框与匹配矩阵；仅限制尺寸�
 梯度范数非有限时，在 AdamW 更新前报错并保存模型、优化器、调度器、梯度与当前 batch；不替换 NaN、不跳过样本。
 D1 的恢复梯度检查使用未缩放的实际梯度。检测头已经输出 FP32 的 exist_logit 和 box，推理不重复转换概率类型。
 
-本轮 D1/D2 均从相同 `init.pt` 开始：全局 batch 4、30000 次更新、每 2000 步验证，余弦学习率在第 30000 步衰减完成。
+首轮 D1/D2 均从相同 `init.pt` 开始：全局 batch 4、30000 次更新、每 2000 步验证，余弦学习率在第 30000 步衰减完成。
 `pycox==0.3.0` 已安装在本机运行环境中，核心 PyTorch/NumPy/Pandas 版本保持不变。
 跳步审计、精简方案及验证见 [AMP 缩放故障报告](docs/reports/2026-10-29-amp-scale-underflow.md)。
 早期热图 FP16 失败证据保留在 [历史热图报告](docs/reports/2026-10-29-heatmap-overflow-fix.md)。
@@ -168,12 +172,13 @@ D1 的恢复梯度检查使用未缩放的实际梯度。检测头已经输出 F
 ### D1 / D2 首轮结果后的两项修改
 
 - **滑窗中心区域（`infer.window_core: true`）**：每个位置只保留中心离它最近的窗口的预测（相邻窗口中心的中点为界），
-  热图候选与 decoder 输出都如此过滤。此前同一位置最多被 8 个重叠窗口预测，NMS 取最高分，FP 有多次机会获得高分，
-  窗口边缘、上下文不完整的预测也参与排名。`eval.window_core` 在验证集上对同一权重比较关闭与开启，结果只写入 `mech/`。
+  热图候选与 decoder 输出都如此过滤。本轮 `overlap=0.25` 时，尾部补窗可让每轴出现三重覆盖，三维同一位置最多被 27 个窗口预测；
+  NMS 取最高分，窗口边缘、上下文不完整的预测也参与排名。`eval.window_core` 在验证集上对同一权重比较关闭与开启，结果只写入 `mech/`。
+  本轮旧权重验证对照中两组 CPM 均下降，因此共同关闭 core、保留 P4，见[验证决策与配对重训方案](docs/reports/2026-10-30-p0-p2-retraining.md)。
 - **Recovery 目标改为固定物理尺寸（`model.recovery.crop_mm: 32`）**：以 GT 中心裁剪 32 mm 立方体，重采样为 32³（1 mm 体素）。
   原目标按 GT 框 × 1.5 缩放，每个病灶都是居中、占比固定的团块，平均模板即可重建（首轮 shuffle-h：Dice 0.760 vs 0.748），
-  小结节只剩几个体素插值放大。新目标保留病灶大小、形状与周围组织，必须由 h 编码。
-- **shuffle-h 增加模板基线**：所有病灶目标的逐体素平均（在评估集上取得，偏向模板）。true 需同时明显优于 shuffled 与 template。
+  小结节只剩几个体素插值放大。新目标不再按 GT 框尺寸缩放，但仍有 GT 居中先验，且部分大病灶超出固定视野；不能仅由目标形式断言 h 已编码病灶特异信息。
+- **shuffle-h 增加模板基线**：按逐体素有效性加权的目标平均（在验证评估集上取得，偏向模板）。true 需同时明显优于 shuffled 与 template；有效目标不足两个时拒绝比较。
 - 信息丢失链另记各阶段的独立命中（`only_dec` 等），区分"热图候选落点偏离但 decoder 仍找到结节"与真正的漏检。
 - 首轮 D1 / D2 的运行配置没有这两个字段：只能用 `eval.window_core` 做推理对照；其余推理、slot 提取和 shuffle-h 需要新运行。
   两项修改都影响训练期验证选权重，D1 与 D2 应从同一份共享初始化、以相同设置一起重训，比较协议不变。
