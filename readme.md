@@ -3,9 +3,9 @@
 Lesion-Centric CT 世界模型第一轮核心实验代码：检测 D0a / D1 / D2，生存 S0–S5（S3 仅在治疗有变化时运行），机制检查（恢复梯度、打乱 h、信息丢失链）。
 第一版只用固定划分与单一随机种子，不做多折与重复种子实验。
 
-本轮队列已执行结束，结果与有效性审计见[最终实验报告](docs/reports/2026-10-31-final-experiment-report.md)。审计确认：D0a现存推理加载的bundle权重没有对应训练best165；S4/S5因配置访问冲突实际执行g而非预期f。原始产物保留，不能把这些名义配置的分数当作相应设计已被正确验证；本次报告没有修改实现或重跑实验。
+审计后的实现更正已完成，最新结果见[更正最终报告](docs/reports/2026-10-31-audit-correction.md)：D0a已用训练best165重新评测，S4/S5已按lesion分支重训，S2精确复现通过。
 
-轻量结果文件：[检测指标CSV](docs/reports/2026-10-31-final-results/detection_metrics.csv)、[生存指标CSV](docs/reports/2026-10-31-final-results/survival_metrics.csv)。完整训练日志、模型权重与冻结配置保留在本地原始 `runs/` 目录；运行路径和有效性说明见最终报告。
+[首轮审计报告](docs/reports/2026-10-31-final-experiment-report.md)及其[检测CSV](docs/reports/2026-10-31-final-results/detection_metrics.csv)、[生存CSV](docs/reports/2026-10-31-final-results/survival_metrics.csv)保留为历史记录，不能混作更正后的结果。完整训练日志、模型、冻结配置与生成凭据保存在本地实际 `runs/` 目录。
 
 ## 环境
 
@@ -181,8 +181,8 @@ D1 的恢复梯度检查使用未缩放的实际梯度。检测头已经输出 F
   转换前按 bundle 表达式解析 `load_pretrain` 与 `checkpointloader#load_path`，要求启用加载且加载文件与 `<run>/checkpoints/model.pt`
   （验证集选出的 epoch 165）SHA256 相同，否则拒绝转换，也不登记测试；通过时写出 `monai_<split>_provenance.json`。
   首轮推理配置加载的是 bundle 自带 `models/model.pt`。外部运行器生成推理配置时须把 load_path 指向该运行的 checkpoint。
-- 两项都需要重跑：S2 / S4 / S5 重新训练与评估（S2 的结构未变，重跑应与首轮 S2 预测一致，可作复现核对）；D0a 只需用正确权重重新推理验证集与测试集。
-  首轮这些配置已在 `runs/test_log.csv` 登记，重新正式评测前须先决定如何处理旧登记。
+- 两项更正均已完成：S2 / S4 / S5 同种子重训并评估，S2 全部权重、预测与训练日志精确复现；D0a 用正确权重重新完成验证及测试推理。
+  首轮登记已归档并注明更正，新运行各正式登记一次，见[更正记录](docs/reports/2026-10-31-audit-correction.md)。
   Lung1 test 与 ACRIN external 已经看过，这次重跑属于对预先设定设计的实现更正，不调整超参数或选择规则；确认性结论需要新的独立测试队列。
 
 ### D1 / D2 首轮结果后的两项修改

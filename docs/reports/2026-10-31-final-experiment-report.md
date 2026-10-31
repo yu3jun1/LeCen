@@ -1,3 +1,5 @@
+> **历史审计快照。** 后续实现更正及最新结果见[更正最终报告](2026-10-31-audit-correction.md)。本报告中的旧D0a输出已归档到管理根`audit_corrections_20261031/archive/D0a_before_correction/`；原D0a运行目录现存输出为正确best165的更正结果。旧S4/S5的g模型仍保留，不能与新lesion/f结果混用。
+
 # 2026-10-31 最终实验产物与有效性报告
 
 核验时间：北京时间 2026-10-31 04:03:56。当前pair：`d23b4afe2fe0b4c81f35a3b7d2a72a7f1eee6fde9ed95db7acc71e331476bc19`。
